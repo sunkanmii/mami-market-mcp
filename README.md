@@ -4,6 +4,8 @@ Trader Network is a WebMCP-enabled surplus-stock exchange for informal market tr
 
 The current application is a focused hackathon prototype. All traders, inventory, prices, trust scores, and demand matches are illustrative demo data.
 
+**Live application:** https://trader-network.pages.dev/
+
 ## Why WebMCP
 
 Conventional browser agents must interpret cards, buttons, and visual state before acting. Trader Network exposes the same client-side application logic as structured tools. The agent and trader therefore share one visible workspace instead of operating through a detached backend integration or brittle screen automation.
@@ -57,6 +59,8 @@ npm run build
 
 The test suite covers WebMCP registration, structured inventory output, draft preparation, and explicit human approval.
 
+The production deployment is hosted on Cloudflare Pages. It has been smoke-tested over HTTPS in ChatGPT's in-app browser, including discovery of all four WebMCP tools.
+
 ## Architecture
 
 - React 19 + TypeScript + Vite
@@ -78,4 +82,3 @@ See [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) for the video plan and [`docs/S
 - Product photography: remote images from Unsplash, subject to the [Unsplash License](https://unsplash.com/license)
 - Outfit typeface: served by Google Fonts under its listed open-font license
 - Phosphor Icons: MIT License
-

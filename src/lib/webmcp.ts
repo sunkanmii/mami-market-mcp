@@ -29,6 +29,10 @@ function response(message: string, data: unknown) {
   };
 }
 
+function openIllustrativeWorkspace(): void {
+  window.dispatchEvent(new Event("trader-network:open-demo"));
+}
+
 function liveTrader() {
   const profile = pilotApi.loadProfile();
   return profile?.role === "trader" ? profile : null;
@@ -129,6 +133,7 @@ export async function registerMarketTools(): Promise<() => void> {
               });
             }
             marketStore.selectItem(itemId, "agent");
+            openIllustrativeWorkspace();
             return response("The item is now visible in the shared workspace.", {
               selectedItemId: itemId,
             });
@@ -244,6 +249,7 @@ export async function registerMarketTools(): Promise<() => void> {
               ...values,
               createdBy: "agent",
             });
+            openIllustrativeWorkspace();
             return response(
               "Draft prepared. Ask the trader to review and approve it in the visible workspace; nothing has been published yet.",
               { draft, requiresHumanApproval: true },

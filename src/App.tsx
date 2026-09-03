@@ -1,10 +1,12 @@
 import {
   ArrowCounterClockwiseIcon,
   ArrowDownIcon,
+  CaretDownIcon,
   CheckCircleIcon,
+  FlaskIcon,
   HandshakeIcon,
 } from "@phosphor-icons/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityStrip } from "./components/ActivityStrip";
 import { AssistPanel } from "./components/AssistPanel";
 import { Brand } from "./components/Brand";
@@ -16,6 +18,7 @@ import { registerMarketTools } from "./lib/webmcp";
 function App() {
   const state = useMarketState();
   const mainRef = useRef<HTMLElement>(null);
+  const [demoOpen, setDemoOpen] = useState(false);
 
   useEffect(() => {
     let disposed = false;
@@ -30,6 +33,17 @@ function App() {
       disposed = true;
       unregister();
     };
+  }, []);
+
+  useEffect(() => {
+    const openDemo = () => {
+      setDemoOpen(true);
+      window.requestAnimationFrame(() => {
+        document.getElementById("workspace")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    };
+    window.addEventListener("trader-network:open-demo", openDemo);
+    return () => window.removeEventListener("trader-network:open-demo", openDemo);
   }, []);
 
   useEffect(() => {
@@ -76,23 +90,18 @@ function App() {
 
   return (
     <main className="app-shell" id="top" ref={mainRef}>
-      <a className="skip-link" href="#workspace">
-        Skip to Market Workspace
+      <a className="skip-link" href="#pilot">
+        Skip to live pilot
       </a>
       <header className="topbar">
         <div className="brand-group">
           <Brand />
-          <span className="demo-data">Live pilot + demo</span>
+          <span className="demo-data">Live pilot</span>
         </div>
         <nav aria-label="Primary navigation">
           <a href="#pilot">Live pilot</a>
-          <a href="#workspace">Workspace</a>
-          <a href="#activity">Activity</a>
+          <a href="#demo-sandbox" onClick={() => setDemoOpen(true)}>Agent sandbox</a>
         </nav>
-        <button className="reset-button" type="button" onClick={() => marketStore.reset()}>
-          <ArrowCounterClockwiseIcon weight="bold" aria-hidden="true" />
-          Reset demo
-        </button>
       </header>
 
       <section className="hero" aria-labelledby="hero-title">
@@ -135,26 +144,57 @@ function App() {
 
       <PilotNetwork />
 
-      <div className="workspace" id="workspace">
-        <InventoryWorkspace
-          inventory={state.inventory}
-          selectedItemId={state.selectedItemId}
-        />
-        <AssistPanel state={state} />
-      </div>
+      <details
+        className="demo-sandbox"
+        id="demo-sandbox"
+        open={demoOpen}
+        onToggle={(event) => setDemoOpen(event.currentTarget.open)}
+      >
+        <summary>
+          <span className="sandbox-icon"><FlaskIcon weight="duotone" aria-hidden="true" /></span>
+          <span className="sandbox-copy">
+            <span>Illustrative data—not pilot evidence</span>
+            <strong>Try the WebMCP agent without creating a real profile</strong>
+            <small>
+              This optional sandbox uses fictional stock and buyers so judges can
+              test the agent tools without the private pilot code.
+            </small>
+          </span>
+          <span className="sandbox-action">
+            {demoOpen ? "Close sandbox" : "Open sandbox"}
+            <CaretDownIcon weight="bold" aria-hidden="true" />
+          </span>
+        </summary>
 
-      <ActivityStrip activities={state.activities} />
+        <div className="sandbox-controls">
+          <span>Sandbox records never enter the live D1 pilot.</span>
+          <button className="reset-button" type="button" onClick={() => marketStore.reset()}>
+            <ArrowCounterClockwiseIcon weight="bold" aria-hidden="true" />
+            Reset illustrative data
+          </button>
+        </div>
+
+        <div className="workspace" id="workspace">
+          <InventoryWorkspace
+            inventory={state.inventory}
+            selectedItemId={state.selectedItemId}
+          />
+          <AssistPanel state={state} />
+        </div>
+
+        <ActivityStrip activities={state.activities} />
+      </details>
 
       <footer className="footer-cta">
         <div>
-          <h2>Open this page in a WebMCP-enabled browser.</h2>
+          <h2>Need to evaluate without joining the pilot?</h2>
           <p>
-            Ask the agent to inspect urgent inventory, find demand, and prepare
-            an offer. You stay in control of the final action.
+            Open the clearly labelled illustrative sandbox, then ask the agent to
+            inspect inventory, find demand, and prepare a reviewable offer.
           </p>
         </div>
-        <a className="footer-action" href="#workspace">
-          See the shared workspace
+        <a className="footer-action" href="#demo-sandbox" onClick={() => setDemoOpen(true)}>
+          Open agent sandbox
           <ArrowDownIcon weight="bold" aria-hidden="true" />
         </a>
       </footer>

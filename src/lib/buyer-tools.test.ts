@@ -15,7 +15,7 @@ const snapshot = (): PilotSnapshot => ({ source: "cloudflare-d1", participants: 
 async function execute(name: string, input: Record<string, unknown> = {}) {
   return await buyerTools().find((tool) => tool.name === name)!.execute(input, { signal: new AbortController().signal }) as { structuredContent: Record<string, unknown> };
 }
-beforeEach(() => { localStorage.clear(); sessionStorage.clear(); buyerAgent.reset(); pilotApi.saveProfile(profile); vi.spyOn(pilotApi, "getNetwork").mockResolvedValue(snapshot()); });
+beforeEach(() => { localStorage.clear(); sessionStorage.clear(); buyerAgent.reset(); pilotApi.saveProfile(profile); pilotApi.saveCode("test-code"); vi.spyOn(pilotApi, "getNetwork").mockResolvedValue(snapshot()); });
 afterEach(() => vi.restoreAllMocks());
 
 describe("buyer agent isolation and approval", () => {
@@ -31,6 +31,11 @@ describe("buyer agent isolation and approval", () => {
     expect(buyerAgent.getState().draft?.buyerId).toBe(profile.id);
     expect(write).not.toHaveBeenCalled();
     await expect(execute("draft_purchase_request", { ...query() })).rejects.toThrow("existing request draft");
+  });
+  it("does not create a hidden draft while the buyer workspace is locked", async () => {
+    pilotApi.clearCode();
+    await expect(execute("draft_purchase_request", { ...query() })).rejects.toThrow("unlock the buyer workspace");
+    expect(buyerAgent.getState().draft).toBeNull();
   });
   it("searches owned requests, displays results, and rejects another buyer's request", async () => {
     await execute("find_stock_for_request", { demandId: "request" });

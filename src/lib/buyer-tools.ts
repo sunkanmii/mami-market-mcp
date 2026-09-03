@@ -84,6 +84,7 @@ export function buyerTools(): WebMCP.ModelContextTool[] {
       inputSchema: { type: "object", properties, required: ["itemName", "requestedQuantity", "unit", "maximumPricePerUnit", "neededBy", "deliveryArea", "fulfilmentPreference"] },
       async execute(input) {
         const profile = buyer();
+        if (!pilotApi.hasCode()) throw new Error("Enter the pilot access code in the page to unlock the buyer workspace before preparing a request.");
         const draft = buyerAgent.prepare(profile.id, input as unknown as PurchaseRequest);
         showBuyer();
         return result("Request drafted in the page, not published. The buyer must review and approve it.", { source: "unpublished-local-draft", draft, requiresHumanApproval: true });

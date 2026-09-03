@@ -1,14 +1,17 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { marketStore } from "./lib/store";
 
 describe("Trader Network human-in-the-loop flow", () => {
   beforeEach(() => {
     marketStore.reset();
+    window.localStorage.clear();
+    window.sessionStorage.clear();
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     document.body.innerHTML = "";
   });
 
@@ -29,5 +32,54 @@ describe("Trader Network human-in-the-loop flow", () => {
 
     expect(screen.getByText(/are now reserved/i)).toBeInTheDocument();
     expect(screen.getByText(/your approval created the only committed change/i)).toBeInTheDocument();
+  });
+
+  it("puts a newly sent offer at the top of the buyer workspace", async () => {
+    window.localStorage.setItem("trader-network-pilot-profile-v2", JSON.stringify({
+      id: "buyer-test",
+      role: "buyer",
+      displayName: "Test Buyer",
+      businessName: null,
+      marketName: null,
+      area: "Ketu",
+      consentedAt: new Date().toISOString(),
+    }));
+    window.localStorage.setItem("trader-network-participant-session-v2", "test-session");
+    window.sessionStorage.setItem("trader-network-pilot-code-v1", "test-code");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      source: "cloudflare-d1",
+      participants: [],
+      inventory: [],
+      demands: [],
+      activities: [],
+      offers: [{
+        id: "offer-test",
+        inventoryId: "stock-test",
+        demandId: "demand-test",
+        quantity: 2,
+        pricePerUnit: 5000,
+        pickupWindow: "Tomorrow morning",
+        note: null,
+        createdBy: "trader",
+        status: "sent",
+        sellerApprovedAt: new Date().toISOString(),
+        sentAt: new Date().toISOString(),
+        buyerRespondedAt: null,
+        completedAt: null,
+        createdAt: new Date().toISOString(),
+        itemName: "Tomatoes",
+        unit: "baskets",
+        traderId: "trader-test",
+        traderName: "Test Trader",
+        buyerId: "buyer-test",
+        buyerName: "Test Buyer",
+      }],
+    }), { headers: { "content-type": "application/json" } }));
+
+    render(<App />);
+
+    expect(await screen.findByText("1 offer waiting")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Offers to review" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Accept offer" })).toBeEnabled();
   });
 });

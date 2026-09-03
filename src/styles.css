@@ -688,6 +688,14 @@ img {
   line-height: 1.5;
 }
 
+.form-note {
+  margin: -4px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
 .participant-bar {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) auto;
@@ -925,8 +933,55 @@ img {
   border-top: 1px solid var(--line);
 }
 
+.pilot-records > .offer-stack:first-child,
+.pilot-records > .incoming-offer-alert + .offer-stack {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.pilot-records > .offer-stack + .records-heading {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.incoming-offer-alert {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 18px;
+  padding: 13px 14px;
+  color: #57350b;
+  background: #f6dfad;
+  border: 1px solid #dbad53;
+  border-radius: 8px;
+}
+
+.incoming-offer-alert > svg {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+}
+
+.incoming-offer-alert > span {
+  display: grid;
+  gap: 2px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.incoming-offer-alert strong {
+  font-size: 0.9375rem;
+}
+
 .live-offer {
   grid-template-columns: 1fr;
+}
+
+.live-offer.is-waiting {
+  border: 2px solid #d79131;
+  box-shadow: 0 0 0 3px rgb(215 145 49 / 10%);
 }
 
 .offer-status {

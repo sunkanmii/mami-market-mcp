@@ -68,7 +68,7 @@ export function AssistPanel({ state }: AssistPanelProps) {
           <SparkleIcon weight="fill" />
         </div>
         <div>
-          <h2 id="assist-title">Turn surplus into an offer</h2>
+          <h2 id="assist-title">Practice an agent-assisted offer</h2>
         </div>
       </div>
 
@@ -80,7 +80,7 @@ export function AssistPanel({ state }: AssistPanelProps) {
               ? "4 WebMCP tools active"
               : state.webMcpStatus === "checking"
                 ? "Checking WebMCP support"
-                : "Demo mode active"}
+                : "Illustrative sandbox active"}
           </strong>
           {state.webMcpStatus === "connected"
             ? "Your browser agent can work in this page."

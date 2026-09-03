@@ -1,6 +1,7 @@
 import {
   ArrowClockwiseIcon,
   ArrowRightIcon,
+  BellRingingIcon,
   CheckCircleIcon,
   ClockIcon,
   DatabaseIcon,
@@ -83,6 +84,14 @@ export function PilotNetwork() {
     window.addEventListener("trader-network:changed", handleNetworkChange);
     return () => window.removeEventListener("trader-network:changed", handleNetworkChange);
   }, [refresh]);
+
+  useEffect(() => {
+    if (!profile || !hasAccessCode) return;
+    const intervalId = window.setInterval(() => {
+      if (!document.hidden) void refresh();
+    }, 8_000);
+    return () => window.clearInterval(intervalId);
+  }, [hasAccessCode, profile, refresh]);
 
   const runMutation = useCallback(
     async (action: () => Promise<unknown>, successMessage: string) => {
@@ -493,7 +502,7 @@ function SellerStock({ item, profile, busy, runMutation }: {
               </div>
               <button type="button" onClick={() => void prepare(match)} disabled={busy}>Prepare offer</button>
             </div>
-          )) : <p className="no-match-copy">No compatible buyer request yet. Keep this page open and refresh after a buyer posts demand.</p>}
+          )) : <p className="no-match-copy">No compatible buyer request yet. This workspace checks for new demand automatically.</p>}
         </div>
       ) : null}
     </article>
@@ -503,6 +512,7 @@ function SellerStock({ item, profile, busy, runMutation }: {
 function BuyerPilot({ profile, snapshot, busy, runMutation }: PilotRoleProps) {
   const demands = snapshot?.demands.filter((item) => item.buyerId === profile.id) ?? [];
   const offers = snapshot?.offers.filter((offer) => offer.buyerId === profile.id) ?? [];
+  const waitingOffers = offers.filter((offer) => offer.status === "sent").length;
 
   const submitDemand = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -529,6 +539,7 @@ function BuyerPilot({ profile, snapshot, busy, runMutation }: PilotRoleProps) {
     <div className="pilot-role-grid">
       <form className="pilot-form" onSubmit={(event) => void submitDemand(event)}>
         <div className="form-heading"><span>Buyer input</span><h3>Post goods you need to source</h3></div>
+        <p className="form-note">New trader offers appear in your workspace automatically—no popup or page reload needed.</p>
         <div className="form-grid-two">
           <label>Product<input name="itemName" required maxLength={80} placeholder="Roma tomatoes" /></label>
           <label>Category<input name="category" maxLength={40} placeholder="Produce" /></label>
@@ -543,6 +554,13 @@ function BuyerPilot({ profile, snapshot, busy, runMutation }: PilotRoleProps) {
       </form>
 
       <div className="pilot-records">
+        {waitingOffers > 0 ? (
+          <div className="incoming-offer-alert" role="status">
+            <BellRingingIcon weight="fill" aria-hidden="true" />
+            <span><strong>{waitingOffers} offer{waitingOffers === 1 ? "" : "s"} waiting</strong>Review and accept before arranging pickup.</span>
+          </div>
+        ) : null}
+        <OfferList offers={offers} profile={profile} busy={busy} runMutation={runMutation} />
         <div className="records-heading"><div><span>Buyer workspace</span><h3>Your open requests</h3></div><strong>{demands.length}</strong></div>
         {demands.length ? demands.map((demand) => (
           <article className="pilot-record-card" key={demand.id}>
@@ -554,7 +572,6 @@ function BuyerPilot({ profile, snapshot, busy, runMutation }: PilotRoleProps) {
             </div>
           </article>
         )) : <EmptyRecord icon="demand" text="Post one genuine buyer request to make demand visible to traders." />}
-        <OfferList offers={offers} profile={profile} busy={busy} runMutation={runMutation} />
       </div>
     </div>
   );
@@ -566,6 +583,7 @@ function OfferList({ offers, profile, busy, runMutation }: {
   busy: boolean;
   runMutation: PilotRoleProps["runMutation"];
 }) {
+  const waitingOffers = offers.filter((offer) => offer.status === "sent").length;
   const act = (offer: PilotOffer, status: OfferStatus) =>
     runMutation(
       () => pilotApi.updateOfferStatus(offer.id, status, profile.id),
@@ -577,9 +595,15 @@ function OfferList({ offers, profile, busy, runMutation }: {
 
   return (
     <section className="offer-stack" aria-labelledby={`${profile.role}-offers-title`}>
-      <div className="records-heading"><div><span>Shared transaction state</span><h3 id={`${profile.role}-offers-title`}>Offers</h3></div><strong>{offers.length}</strong></div>
+      <div className="records-heading">
+        <div>
+          <span>Shared transaction state</span>
+          <h3 id={`${profile.role}-offers-title`}>{profile.role === "buyer" ? "Offers to review" : "Offers"}</h3>
+        </div>
+        <strong>{profile.role === "buyer" && waitingOffers > 0 ? waitingOffers : offers.length}</strong>
+      </div>
       {offers.length ? offers.map((offer) => (
-        <article className="live-offer" key={offer.id}>
+        <article className={`live-offer${profile.role === "buyer" && offer.status === "sent" ? " is-waiting" : ""}`} key={offer.id}>
           <div className="offer-status" data-status={offer.status}>{offer.status}</div>
           <h4>{offer.quantity} {offer.unit} of {offer.itemName}</h4>
           <p>{naira.format(offer.pricePerUnit)} each · {naira.format(offer.quantity * offer.pricePerUnit)} total</p>

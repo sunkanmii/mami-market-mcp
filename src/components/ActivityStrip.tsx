@@ -1,9 +1,9 @@
 import {
-  ArrowLeft,
-  ArrowRight,
-  Robot,
-  User,
-  Wrench,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  RobotIcon,
+  UserIcon,
+  WrenchIcon,
 } from "@phosphor-icons/react";
 import { useState } from "react";
 import { relativeActivityTime } from "../lib/format";
@@ -17,7 +17,11 @@ export function ActivityStrip({ activities }: { activities: ActivityItem[] }) {
   if (!current) return null;
 
   const Icon =
-    current.kind === "agent" ? Robot : current.kind === "human" ? User : Wrench;
+    current.kind === "agent"
+      ? RobotIcon
+      : current.kind === "human"
+        ? UserIcon
+        : WrenchIcon;
 
   return (
     <section className="activity-strip" id="activity" aria-labelledby="activity-title">
@@ -41,7 +45,7 @@ export function ActivityStrip({ activities }: { activities: ActivityItem[] }) {
           disabled={safeIndex === 0}
           onClick={() => setActiveIndex((index) => Math.max(0, index - 1))}
         >
-          <ArrowLeft weight="bold" aria-hidden="true" />
+          <ArrowLeftIcon weight="bold" aria-hidden="true" />
         </button>
         <span>
           {safeIndex + 1} / {activities.length}
@@ -54,7 +58,7 @@ export function ActivityStrip({ activities }: { activities: ActivityItem[] }) {
             setActiveIndex((index) => Math.min(activities.length - 1, index + 1))
           }
         >
-          <ArrowRight weight="bold" aria-hidden="true" />
+          <ArrowRightIcon weight="bold" aria-hidden="true" />
         </button>
       </div>
     </section>

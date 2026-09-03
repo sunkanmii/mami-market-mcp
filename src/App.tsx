@@ -1,8 +1,8 @@
 import {
-  ArrowCounterClockwise,
-  ArrowDown,
-  CheckCircle,
-  Handshake,
+  ArrowCounterClockwiseIcon,
+  ArrowDownIcon,
+  CheckCircleIcon,
+  HandshakeIcon,
 } from "@phosphor-icons/react";
 import { useEffect, useRef } from "react";
 import { ActivityStrip } from "./components/ActivityStrip";
@@ -88,7 +88,7 @@ function App() {
           <a href="#activity">Activity</a>
         </nav>
         <button className="reset-button" type="button" onClick={() => marketStore.reset()}>
-          <ArrowCounterClockwise weight="bold" aria-hidden="true" />
+          <ArrowCounterClockwiseIcon weight="bold" aria-hidden="true" />
           Reset demo
         </button>
       </header>
@@ -110,19 +110,19 @@ function App() {
           </p>
           <a className="hero-action" href="#workspace">
             Review today’s stock
-            <ArrowDown weight="bold" aria-hidden="true" />
+            <ArrowDownIcon weight="bold" aria-hidden="true" />
           </a>
         </div>
         <div className="hero-proof" aria-label="Product principles">
           <div>
-            <Handshake weight="duotone" aria-hidden="true" />
+            <HandshakeIcon weight="duotone" aria-hidden="true" />
             <span>
               <strong>Agent prepares</strong>
               Matches demand and drafts the offer.
             </span>
           </div>
           <div>
-            <CheckCircle weight="duotone" aria-hidden="true" />
+            <CheckCircleIcon weight="duotone" aria-hidden="true" />
             <span>
               <strong>Trader decides</strong>
               Nothing publishes without approval.
@@ -151,7 +151,7 @@ function App() {
         </div>
         <a className="footer-action" href="#workspace">
           See the shared workspace
-          <ArrowDown weight="bold" aria-hidden="true" />
+          <ArrowDownIcon weight="bold" aria-hidden="true" />
         </a>
       </footer>
     </main>

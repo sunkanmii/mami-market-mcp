@@ -1,14 +1,14 @@
 import {
-  ArrowRight,
-  Check,
-  Clock,
-  Code,
-  MapPin,
-  SealCheck,
-  Sparkle,
-  Trash,
-  UserCircleCheck,
-  WarningCircle,
+  ArrowRightIcon,
+  CheckIcon,
+  ClockIcon,
+  CodeIcon,
+  MapPinIcon,
+  SealCheckIcon,
+  SparkleIcon,
+  TrashIcon,
+  UserCircleCheckIcon,
+  WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { naira } from "../lib/format";
@@ -65,7 +65,7 @@ export function AssistPanel({ state }: AssistPanelProps) {
     <aside className="assist-panel" aria-labelledby="assist-title">
       <div className="assist-heading">
         <div className="agent-orb" aria-hidden="true">
-          <Sparkle weight="fill" />
+          <SparkleIcon weight="fill" />
         </div>
         <div>
           <h2 id="assist-title">Turn surplus into an offer</h2>
@@ -105,7 +105,7 @@ export function AssistPanel({ state }: AssistPanelProps) {
               disabled={itemMatches.length === 0}
             >
               Preview that assist
-              <ArrowRight weight="bold" aria-hidden="true" />
+              <ArrowRightIcon weight="bold" aria-hidden="true" />
             </button>
           </div>
 
@@ -133,12 +133,12 @@ export function AssistPanel({ state }: AssistPanelProps) {
                         <span>
                           <strong>{match.buyerName}</strong>
                           <small>
-                            <MapPin weight="fill" aria-hidden="true" />
+                            <MapPinIcon weight="fill" aria-hidden="true" />
                             {match.distanceKm} km · {match.market}
                           </small>
                         </span>
                         <span className="trust-score">
-                          <SealCheck weight="fill" aria-hidden="true" />
+                          <SealCheckIcon weight="fill" aria-hidden="true" />
                           {match.trustScore}%
                         </span>
                       </button>
@@ -173,7 +173,7 @@ export function AssistPanel({ state }: AssistPanelProps) {
               </div>
             ) : (
               <div className="empty-match">
-                <WarningCircle weight="duotone" aria-hidden="true" />
+                <WarningCircleIcon weight="duotone" aria-hidden="true" />
                 <p>
                   No seeded demand for this item yet. Select a perishable item to
                   continue the demo.
@@ -186,13 +186,13 @@ export function AssistPanel({ state }: AssistPanelProps) {
 
       <details className="tool-disclosure">
         <summary>
-          <Code weight="bold" aria-hidden="true" />
+          <CodeIcon weight="bold" aria-hidden="true" />
           Inspect exposed tools
         </summary>
         <ul>
           {toolNames.map((tool) => (
             <li key={tool}>
-              <Check weight="bold" aria-hidden="true" />
+              <CheckIcon weight="bold" aria-hidden="true" />
               <code>{tool}</code>
             </li>
           ))}
@@ -212,7 +212,7 @@ function DraftReview({ state }: { state: MarketState }) {
     return (
       <div className="published-card" aria-live="polite">
         <span className="published-check" aria-hidden="true">
-          <Check weight="bold" />
+          <CheckIcon weight="bold" />
         </span>
         <h3>{draft.quantity} {item.unit} are now reserved</h3>
         <p>
@@ -229,7 +229,7 @@ function DraftReview({ state }: { state: MarketState }) {
   return (
     <div className="draft-card" aria-live="polite">
       <div className="draft-banner">
-        <Sparkle weight="fill" aria-hidden="true" />
+        <SparkleIcon weight="fill" aria-hidden="true" />
         <span>
           <strong>{draft.createdBy === "agent" ? "Agent-prepared draft" : "Your offer draft"}</strong>
           Nothing is published until you approve.
@@ -258,14 +258,14 @@ function DraftReview({ state }: { state: MarketState }) {
       <dl className="draft-details">
         <div>
           <dt>
-            <UserCircleCheck weight="duotone" aria-hidden="true" />
+            <UserCircleCheckIcon weight="duotone" aria-hidden="true" />
             Buyer
           </dt>
           <dd>{match?.buyerName ?? "Open marketplace"}</dd>
         </div>
         <div>
           <dt>
-            <Clock weight="duotone" aria-hidden="true" />
+            <ClockIcon weight="duotone" aria-hidden="true" />
             Collection
           </dt>
           <dd>{match?.pickupWindow ?? "Arrange after matching"}</dd>
@@ -276,11 +276,11 @@ function DraftReview({ state }: { state: MarketState }) {
 
       <div className="draft-actions">
         <button className="primary-button" type="button" onClick={() => marketStore.publishDraft()}>
-          <Check weight="bold" aria-hidden="true" />
+          <CheckIcon weight="bold" aria-hidden="true" />
           Approve and publish
         </button>
         <button className="discard-button" type="button" onClick={() => marketStore.discardDraft()}>
-          <Trash weight="bold" aria-hidden="true" />
+          <TrashIcon weight="bold" aria-hidden="true" />
           Discard
         </button>
       </div>

@@ -1,9 +1,9 @@
 import {
-  ArrowRight,
-  Basket,
-  ClockCountdown,
-  Package,
-  ShieldCheck,
+  ArrowRightIcon,
+  BasketIcon,
+  ClockCountdownIcon,
+  PackageIcon,
+  ShieldCheckIcon,
 } from "@phosphor-icons/react";
 import { marketStore } from "../lib/store";
 import { naira, urgencyLabel } from "../lib/format";
@@ -15,8 +15,8 @@ interface InventoryWorkspaceProps {
 }
 
 function ItemIcon({ category }: { category: InventoryItem["category"] }) {
-  if (category === "Produce") return <Basket weight="duotone" />;
-  return <Package weight="duotone" />;
+  if (category === "Produce") return <BasketIcon weight="duotone" />;
+  return <PackageIcon weight="duotone" />;
 }
 
 export function InventoryWorkspace({
@@ -35,7 +35,7 @@ export function InventoryWorkspace({
           <h2 id="inventory-title">What needs your attention</h2>
         </div>
         <div className="urgency-count" aria-label={`${urgentCount} urgent items`}>
-          <ClockCountdown weight="bold" aria-hidden="true" />
+          <ClockCountdownIcon weight="bold" aria-hidden="true" />
           <span>{urgentCount} moving soon</span>
         </div>
       </div>
@@ -81,7 +81,7 @@ export function InventoryWorkspace({
                 <strong>{naira.format(item.pricePerUnit)}</strong>
                 <span>per {item.unit.replace(/s$/, "")}</span>
               </span>
-              <ArrowRight className="row-arrow" weight="bold" aria-hidden="true" />
+              <ArrowRightIcon className="row-arrow" weight="bold" aria-hidden="true" />
             </button>
           );
         })}
@@ -107,7 +107,7 @@ export function InventoryWorkspace({
           </p>
         </div>
         <div className="shared-state-note">
-          <ShieldCheck weight="duotone" aria-hidden="true" />
+          <ShieldCheckIcon weight="duotone" aria-hidden="true" />
           <span>
             <strong>One shared state</strong>
             Human and agent see the same stock.

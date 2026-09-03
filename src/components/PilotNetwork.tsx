@@ -1,10 +1,8 @@
 import {
-  ArrowClockwiseIcon,
   ArrowRightIcon,
   BellRingingIcon,
   CheckCircleIcon,
   ClockIcon,
-  DatabaseIcon,
   MapPinIcon,
   PackageIcon,
   PhoneIcon,
@@ -169,16 +167,6 @@ export function PilotNetwork() {
             Traders post time-sensitive stock. Buyers post what they need. The
             network records the offer from first match to completed pickup.
           </p>
-        </div>
-        <div className="data-status" data-online={Boolean(snapshot)}>
-          <DatabaseIcon weight="duotone" aria-hidden="true" />
-          <span>
-            <strong>{snapshot ? "Cloudflare D1 connected" : loading ? "Checking live data" : "Live data unavailable"}</strong>
-            {snapshot ? "Shared across different phones" : "The WebMCP demo below still works"}
-          </span>
-          <button type="button" onClick={() => void refresh()} aria-label="Refresh live pilot data">
-            <ArrowClockwiseIcon weight="bold" aria-hidden="true" />
-          </button>
         </div>
       </header>
 

@@ -21,9 +21,9 @@
 - [x] MIT license at repository root
 - [x] WebMCP implementation documented
 - [x] Live pilot and illustrative fallback clearly separated
-- [ ] Initialize and publish the public Git repository
+- [x] Initialize and publish the public Git repository: https://github.com/sunkanmii/mami-market-mcp
 - [ ] Add the public repository URL to the Devpost entry
-- [ ] Confirm the repository host detects the MIT license
+- [x] Confirm the repository host detects the MIT license
 
 ## Submission materials
 

@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { PilotInventory, PilotSnapshot } from "./pilot-api";
 
-export const purchaseUnits = ["crates", "baskets", "bags", "packs", "kilograms"] as const;
+export const purchaseUnits = ["crates", "baskets", "bags", "packs", "kilograms", "piece"] as const;
 export interface PurchaseRequest {
   itemName: string;
   category?: string;
@@ -12,7 +12,7 @@ export interface PurchaseRequest {
   deliveryArea: string;
   fulfilmentPreference: "pickup" | "delivery" | "either";
 }
-export interface PurchaseDraft extends PurchaseRequest { id: string; buyerId: string }
+export interface PurchaseDraft extends PurchaseRequest { id: string; buyerId: string; createdBy: "agent" | "buyer" }
 export interface StockMatch extends PilotInventory {
   availableQuantity: number;
   suggestedQuantity: number;
@@ -30,9 +30,9 @@ const subscribe = (listener: () => void) => { listeners.add(listener); return ()
 export const useBuyerAgent = () => useSyncExternalStore(subscribe, () => state);
 export const buyerAgent = {
   getState: () => state,
-  prepare(buyerId: string, input: PurchaseRequest) {
+  prepare(buyerId: string, input: PurchaseRequest, createdBy: "agent" | "buyer" = "agent") {
     if (state.draft?.buyerId === buyerId) throw new Error("Review or discard the existing request draft before preparing another.");
-    const draft = { ...validatePurchaseRequest(input), buyerId, id: crypto.randomUUID() };
+    const draft = { ...validatePurchaseRequest(input), buyerId, createdBy, id: crypto.randomUUID() };
     update({ ...state, draft });
     return draft;
   },
@@ -51,7 +51,7 @@ export function validatePurchaseRequest(input: PurchaseRequest): PurchaseRequest
   const itemName = text(input.itemName, "Product", 80);
   const deliveryArea = text(input.deliveryArea, "Collection area", 80);
   if (!Number.isInteger(input.requestedQuantity) || input.requestedQuantity < 1 || input.requestedQuantity > 100_000) throw new Error("Quantity must be a whole number between 1 and 100,000.");
-  if (!(purchaseUnits as readonly string[]).includes(input.unit)) throw new Error("Choose crates, baskets, bags, packs, or kilograms. Units are not automatically converted.");
+  if (!(purchaseUnits as readonly string[]).includes(input.unit)) throw new Error("Choose crates, baskets, bags, packs, kilograms, or piece. Units are not automatically converted.");
   if (input.maximumPricePerUnit !== null && (!Number.isInteger(input.maximumPricePerUnit) || input.maximumPricePerUnit < 0 || input.maximumPricePerUnit > 1_000_000_000)) throw new Error("Maximum price must be a whole naira amount, or null for an open budget.");
   if (typeof input.neededBy !== "string" || !/(Z|[+-]\d{2}:\d{2})$/.test(input.neededBy) || !Number.isFinite(Date.parse(input.neededBy)) || Date.parse(input.neededBy) <= Date.now()) throw new Error("Needed by must be a future ISO date with a timezone, for example +01:00 for Nigeria.");
   if (!["pickup", "delivery", "either"].includes(input.fulfilmentPreference)) throw new Error("Choose pickup, delivery, or either.");

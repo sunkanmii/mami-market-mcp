@@ -9,7 +9,7 @@ export function BuyerAgentPanel({ profile, busy, runMutation }: { profile: Pilot
   const draft = state.draft?.buyerId === profile.id ? state.draft : null;
   const search = state.search?.buyerId === profile.id ? state.search : null;
   return (
-    <section className="buyer-agent-panel" id="buyer-agent-workspace" aria-labelledby="buyer-agent-title">
+    <section className="buyer-agent-panel" id="buyer-agent-workspace" tabIndex={-1} aria-labelledby="buyer-agent-title">
       <h3 id="buyer-agent-title">Your buying assistant</h3>
       <p>Ask your browser agent to find stock, prepare a request, or explain offers. You decide what to publish and accept.</p>
       <blockquote>“Find stock for my open requests and explain any offers sent to me.”</blockquote>
@@ -58,7 +58,7 @@ function RequestDraftForm({ draft, busy, runMutation }: { draft: PurchaseDraft; 
   };
   return (
     <form className="pilot-form buyer-request-draft" autoComplete="off" onSubmit={(event) => void publish(event)} aria-labelledby="request-draft-title">
-      <div className="form-heading"><span>Unpublished · agent prepared</span><h3 id="request-draft-title">Review your request</h3></div>
+      <div className="form-heading"><span>Unpublished · {draft.createdBy === "buyer" ? "selected from market" : "agent prepared"}</span><h3 id="request-draft-title">Review your request</h3></div>
       <p role="status">Edit any detail below. Nothing is sent until you approve. This draft is lost if you reload.</p>
       <div className="form-grid-two">
         <label>Product<input name="itemName" required maxLength={80} defaultValue={draft.itemName} /></label>

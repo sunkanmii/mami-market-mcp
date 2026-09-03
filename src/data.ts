@@ -104,6 +104,7 @@ export const matches: BuyerMatch[] = [
 
 export function createInitialState(): MarketState {
   return {
+    sandboxRole: "seller",
     inventory: structuredClone(inventory),
     matches: structuredClone(matches),
     selectedItemId: "tomatoes-roma",

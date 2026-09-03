@@ -22,16 +22,22 @@ describe("Trader Network human-in-the-loop flow", () => {
 
     expect(screen.getByText("Agent-prepared draft")).toBeInTheDocument();
     expect(screen.getByText(/nothing is published until you approve/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /approve and publish/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /approve and send/i })).toBeEnabled();
   });
 
   it("publishes only after an explicit approval action", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /preview that assist/i }));
-    fireEvent.click(screen.getByRole("button", { name: /approve and publish/i }));
-
-    expect(screen.getByText(/are now reserved/i)).toBeInTheDocument();
-    expect(screen.getByText(/your approval created the only committed change/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /approve and send/i }));
+    expect(marketStore.getSnapshot().inventory[0].reserved).toBe(0);
+    fireEvent.click(screen.getByRole("button", { name: /view offer as demo buyer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /accept demo offer/i }));
+    expect(marketStore.getSnapshot().inventory[0].reserved).toBe(6);
+    expect(screen.getByText("Seller contact handoff")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /simulate completed pickup/i }));
+    expect(marketStore.getSnapshot().inventory[0].quantity).toBe(12);
+    expect(marketStore.getSnapshot().inventory[0].reserved).toBe(0);
+    expect(screen.getByText(/No real sale occurred/i)).toBeInTheDocument();
   });
 
   it("puts a newly sent offer at the top of the buyer workspace", async () => {
@@ -79,7 +85,7 @@ describe("Trader Network human-in-the-loop flow", () => {
     render(<App />);
 
     expect(await screen.findByText("1 offer waiting")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Offers to review" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Your offers & exchanges" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Accept offer" })).toBeEnabled();
   });
 });

@@ -1133,6 +1133,7 @@ img {
 }
 
 .demo-sandbox {
+  --sandbox-inset: 32px;
   width: min(calc(100% - 48px), var(--content));
   margin: 56px auto 0;
   overflow: hidden;
@@ -1146,7 +1147,7 @@ img {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
-  padding: 22px 24px;
+  padding: 24px var(--sandbox-inset);
   cursor: pointer;
   list-style: none;
 }
@@ -1224,7 +1225,7 @@ img {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 10px 24px;
+  padding: 16px var(--sandbox-inset);
   color: var(--ink-soft);
   background: #fbf5e8;
   border-top: 1px solid var(--line);
@@ -1237,6 +1238,7 @@ img {
 
 .demo-sandbox .workspace {
   width: 100%;
+  max-width: none;
   margin: 0;
   border-right: 0;
   border-left: 0;
@@ -1245,7 +1247,10 @@ img {
 
 .demo-sandbox .activity-strip {
   width: 100%;
-  margin-top: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 32px var(--sandbox-inset);
+  gap: 24px;
   border-right: 0;
   border-bottom: 0;
   border-left: 0;
@@ -2351,9 +2356,7 @@ img {
   }
 
   .demo-data {
-    max-width: 43px;
-    overflow: hidden;
-    text-overflow: clip;
+    flex-shrink: 0;
   }
 
   .reset-button {
@@ -2624,6 +2627,59 @@ img {
   .footer-action {
     width: 100%;
   }
+}
+
+.market-board { margin: 28px 0 36px; padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+.market-board h3 { margin: 8px 0; font-size: 1.6rem; }
+.market-board header p { max-width: 75ch; line-height: 1.6; color: var(--ink-soft); }
+.market-filters { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 22px; }
+.market-filters label { display: grid; gap: 8px; font-weight: 600; }
+.market-filters label:first-child { flex: 1 1 240px; }
+.market-filters input, .market-filters select { width: 100%; min-height: 46px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--surface); color: var(--ink); font: inherit; }
+.market-result-count { color: var(--ink-soft); }
+.market-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 18px; }
+.market-listing { min-width: 0; padding: 22px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); overflow-wrap: anywhere; }
+.market-listing h4 { margin: 14px 0 8px; font-size: 1.3rem; }
+.market-listing p { line-height: 1.5; color: var(--ink-soft); }
+.market-listing dl, .demo-offer-progress dl { display: grid; gap: 14px; margin: 20px 0; }
+.market-listing dl { grid-template-columns: 1fr 1fr; }
+.market-listing dt, .demo-offer-progress dt { font-size: .9375rem; opacity: .85; }
+.market-listing dd, .demo-offer-progress dd { margin: 4px 0 0; font-weight: 600; line-height: 1.45; }
+.market-listing .compact-button { width: 100%; white-space: normal; min-height: 46px; margin-top: 10px; }
+.market-state { display: inline-block; padding: 6px 10px; background: #e8efda; color: var(--leaf); border-radius: 5px; font-size: .9375rem; font-weight: 600; }
+.market-state[data-state="closed"] { background: var(--surface-deep); color: var(--ink-soft); }
+.market-state[data-state="reserved"] { background: #f5e6b9; }
+.market-help a, .market-listing > a { color: var(--leaf); text-underline-offset: 3px; }
+.demo-role-controls { margin: 0; padding: 28px var(--sandbox-inset); border-top: 1px solid var(--line); }
+.demo-role-controls h3 { font-size: 1.5rem; margin: 0 0 8px; }
+.demo-role-controls p { margin: 8px 0 0; max-width: 75ch; line-height: 1.6; color: var(--ink-soft); }
+.demo-role-controls .role-switch { max-width: 440px; margin: 20px 0; }
+.demo-role-controls .role-switch { grid-template-columns: 1fr 1fr; }
+.demo-role-controls .role-switch button { display: flex; justify-content: center; min-height: 48px; padding: 12px 18px; }
+.demo-trade-steps { display: flex; flex-wrap: wrap; gap: 8px 24px; list-style: none; padding: 0; margin: 0; }
+.demo-trade-steps li { padding: 8px 0; color: var(--ink-soft); }
+.demo-trade-steps [aria-current="step"] { border-bottom: 3px solid var(--leaf); font-weight: 700; color: var(--leaf); }
+.demo-buyer-request { padding: 32px var(--sandbox-inset); align-self: start; }
+.demo-buyer-request h2 { font-size: 2rem; margin: 12px 0 16px; }
+.demo-buyer-request h3 { margin: 28px 0 12px; }
+.demo-buyer-request p { line-height: 1.6; }
+.demo-offer-progress { margin-top: 24px; line-height: 1.6; overflow-wrap: anywhere; }
+.demo-offer-progress h3 { font-size: 1.5rem; }
+.demo-trade-status { color: var(--lime); font-weight: 600; }
+.demo-offer-progress .secondary-button { width: 100%; margin-top: 12px; white-space: normal; height: auto; min-height: 48px; }
+.demo-offer-progress .secondary-button { border: 1px solid #ffffff60; padding: 12px 18px; }
+.demo-offer-actions .secondary-button:first-child { background: var(--lime); color: var(--leaf); }
+.demo-contact-handoff { border-block: 1px solid #ffffff40; margin: 24px 0; padding: 12px 0; }
+.demo-contact-handoff h4 { font-size: 1.125rem; }
+.demo-sandbox .inventory-section, .demo-sandbox .assist-panel { padding: 32px var(--sandbox-inset); }
+.demo-sandbox .activity-current { min-height: 128px; }
+@media (max-width: 620px) {
+  .demo-sandbox { --sandbox-inset: 18px; }
+  .demo-role-controls, .demo-sandbox .activity-strip, .demo-buyer-request,
+  .demo-sandbox .inventory-section, .demo-sandbox .assist-panel { padding: 24px var(--sandbox-inset); }
+  .demo-sandbox .activity-strip { gap: 20px; }
+  .demo-sandbox .activity-heading h2 { font-size: 1.4rem; }
+  .demo-sandbox .activity-current { min-height: 0; padding: 20px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

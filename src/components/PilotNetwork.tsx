@@ -16,6 +16,8 @@ import {
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { naira } from "../lib/format";
 import { BuyerAgentPanel } from "./BuyerAgentPanel";
+import { MarketBoard } from "./MarketBoard";
+import { availability } from "../lib/market-availability";
 import { buyerAgent } from "../lib/buyer-agent";
 import {
   PilotApiError,
@@ -151,10 +153,10 @@ export function PilotNetwork() {
 
   const metrics = useMemo(() => {
     const inventory = snapshot?.inventory.filter((item) =>
-      ["available", "partially_matched"].includes(item.status),
+      availability(item, snapshot.offers).available > 0,
     ).length ?? 0;
     const demands = snapshot?.demands.filter((item) =>
-      ["open", "partially_matched"].includes(item.status),
+      availability(item, snapshot.offers).available > 0,
     ).length ?? 0;
     const completed = snapshot?.offers.filter((offer) => offer.status === "completed").length ?? 0;
     return { inventory, demands, completed };
@@ -398,14 +400,16 @@ function TraderPilot({ profile, snapshot, busy, runMutation }: PilotRoleProps) {
   };
 
   return (
+    <>
+    <MarketBoard profile={profile} snapshot={snapshot} busy={busy} runMutation={runMutation} />
     <div className="pilot-role-grid">
-      <form className="pilot-form" onSubmit={(event) => void submitInventory(event)}>
+      <form className="pilot-form" id="seller-stock-form" onSubmit={(event) => void submitInventory(event)}>
         <div className="form-heading"><span>Seller input</span><h3>Post stock that needs to move</h3></div>
         <div className="form-grid-two">
           <label>Product<input name="itemName" required maxLength={80} placeholder="Roma tomatoes" /></label>
           <label>Category<input name="category" maxLength={40} placeholder="Produce" /></label>
           <label>Quantity<input name="quantity" type="number" min="1" step="1" required /></label>
-          <label>Unit<select name="unit" required defaultValue="crates"><option>crates</option><option>baskets</option><option>bags</option><option>packs</option><option>kilograms</option></select></label>
+          <label>Unit<select name="unit" required defaultValue="crates"><option>crates</option><option>baskets</option><option>bags</option><option>packs</option><option>kilograms</option><option>piece</option></select></label>
           <label>Asking price per unit (₦)<input name="askingPricePerUnit" type="number" min="0" step="1" required /></label>
           <label>Lowest acceptable (₦) <span>optional</span><input name="minimumPricePerUnit" type="number" min="0" step="1" /></label>
           <label>Available until <span>optional</span><input name="availableUntil" type="datetime-local" /></label>
@@ -418,16 +422,18 @@ function TraderPilot({ profile, snapshot, busy, runMutation }: PilotRoleProps) {
       <div className="pilot-records">
         <div className="records-heading"><div><span>Seller workspace</span><h3>Your live stock</h3></div><strong>{inventory.length}</strong></div>
         {inventory.length ? inventory.map((item) => (
-          <SellerStock key={item.id} item={item} profile={profile} busy={busy} runMutation={runMutation} />
+          <SellerStock key={item.id} item={item} offers={snapshot?.offers ?? []} profile={profile} busy={busy} runMutation={runMutation} />
         )) : <EmptyRecord icon="stock" text="Post one genuine stock line to begin the pilot." />}
         <OfferList offers={offers} profile={profile} busy={busy} runMutation={runMutation} />
       </div>
     </div>
+    </>
   );
 }
 
-function SellerStock({ item, profile, busy, runMutation }: {
+function SellerStock({ item, offers, profile, busy, runMutation }: {
   item: PilotInventory;
+  offers: PilotOffer[];
   profile: PilotParticipant;
   busy: boolean;
   runMutation: PilotRoleProps["runMutation"];
@@ -435,6 +441,7 @@ function SellerStock({ item, profile, busy, runMutation }: {
   const [matches, setMatches] = useState<PilotMatch[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const stockState = availability(item, offers);
 
   const findMatches = async () => {
     setLoading(true);
@@ -458,7 +465,7 @@ function SellerStock({ item, profile, busy, runMutation }: {
         inventoryId: item.id,
         demandId: match.demandId,
         actorId: profile.id,
-        quantity: Math.min(item.quantity, match.requestedQuantity),
+        quantity: Math.min(match.availableQuantity, match.requestedQuantity),
         pricePerUnit: price,
         pickupWindow: `By ${readableDate(match.neededBy)}`,
         note: "Confirm packaging and collection details before pickup.",
@@ -472,12 +479,12 @@ function SellerStock({ item, profile, busy, runMutation }: {
     <article className="pilot-record-card">
       <div className="record-icon"><PackageIcon weight="duotone" aria-hidden="true" /></div>
       <div className="record-main">
-        <span>{item.status.replace("_", " ")}</span>
+        <span>{stockState.label}</span>
         <h4>{item.itemName}</h4>
-        <p>{item.quantity} {item.unit} · {naira.format(item.askingPricePerUnit)} each</p>
+        <p>{stockState.available} {item.unit} available · {stockState.reserved} reserved · {naira.format(item.askingPricePerUnit)} each</p>
         <small><ClockIcon weight="fill" aria-hidden="true" />Available until {readableDate(item.availableUntil)}</small>
       </div>
-      <button className="compact-button" type="button" onClick={() => void findMatches()} disabled={loading}>
+      <button className="compact-button" type="button" onClick={() => void findMatches()} disabled={loading || stockState.available === 0}>
         {loading ? "Checking…" : "Find buyers"}
       </button>
       {error ? <p className="inline-error" role="alert">{error}</p> : null}
@@ -528,6 +535,7 @@ function BuyerPilot({ profile, snapshot, busy, runMutation }: PilotRoleProps) {
 
   return (
     <>
+    <MarketBoard profile={profile} snapshot={snapshot} busy={busy} runMutation={runMutation} />
     <BuyerAgentPanel profile={profile} busy={busy} runMutation={runMutation} />
     <div className="pilot-role-grid">
       <form className="pilot-form" onSubmit={(event) => void submitDemand(event)}>
@@ -537,7 +545,7 @@ function BuyerPilot({ profile, snapshot, busy, runMutation }: PilotRoleProps) {
           <label>Product<input name="itemName" required maxLength={80} placeholder="Roma tomatoes" /></label>
           <label>Category<input name="category" maxLength={40} placeholder="Produce" /></label>
           <label>Quantity<input name="requestedQuantity" type="number" min="1" step="1" required /></label>
-          <label>Unit<select name="unit" required defaultValue="crates"><option>crates</option><option>baskets</option><option>bags</option><option>packs</option><option>kilograms</option></select></label>
+          <label>Unit<select name="unit" required defaultValue="crates"><option>crates</option><option>baskets</option><option>bags</option><option>packs</option><option>kilograms</option><option>piece</option></select></label>
           <label>Maximum price per unit (₦) <span>optional</span><input name="maximumPricePerUnit" type="number" min="0" step="1" /></label>
           <label>Needed by<input name="neededBy" type="datetime-local" required /></label>
           <label>Collection area<input name="deliveryArea" required defaultValue={profile.area} /></label>
@@ -554,12 +562,12 @@ function BuyerPilot({ profile, snapshot, busy, runMutation }: PilotRoleProps) {
           </div>
         ) : null}
         <OfferList offers={offers.filter((offer) => offer.status !== "draft")} profile={profile} busy={busy} runMutation={runMutation} />
-        <div className="records-heading"><div><span>Buyer workspace</span><h3>Your open requests</h3></div><strong>{demands.length}</strong></div>
+        <div className="records-heading"><div><span>Buyer workspace</span><h3>Your requests · open &amp; closed</h3></div><strong>{demands.length}</strong></div>
         {demands.length ? demands.map((demand) => (
           <article className="pilot-record-card" key={demand.id}>
             <div className="record-icon"><ShoppingCartIcon weight="duotone" aria-hidden="true" /></div>
             <div className="record-main">
-              <span>{demand.status.replace("_", " ")}</span><h4>{demand.itemName}</h4>
+              <span>{availability(demand, snapshot?.offers ?? []).label}</span><h4>{demand.itemName}</h4>
               <p>{demand.requestedQuantity} {demand.unit} · {demand.maximumPricePerUnit === null ? "Price open" : `up to ${naira.format(demand.maximumPricePerUnit)}`}</p>
               <small><ClockIcon weight="fill" aria-hidden="true" />Needed by {readableDate(demand.neededBy)}</small>
             </div>
@@ -592,13 +600,13 @@ function OfferList({ offers, profile, busy, runMutation }: {
       <div className="records-heading">
         <div>
           <span>Shared transaction state</span>
-          <h3 id={`${profile.role}-offers-title`}>{profile.role === "buyer" ? "Offers to review" : "Offers"}</h3>
+          <h3 id={`${profile.role}-offers-title`} tabIndex={-1}>Your offers &amp; exchanges</h3>
         </div>
         <strong>{profile.role === "buyer" && waitingOffers > 0 ? waitingOffers : offers.length}</strong>
       </div>
       {offers.length ? offers.map((offer) => (
         <article className={`live-offer${profile.role === "buyer" && offer.status === "sent" ? " is-waiting" : ""}`} key={offer.id}>
-          <div className="offer-status" data-status={offer.status}>{offer.status}</div>
+          <div className="offer-status" data-status={offer.status}>{offer.status === "completed" ? "Closed · pickup completed" : offer.status === "sent" ? "Sent · awaiting buyer" : offer.status === "accepted" ? "Accepted · awaiting pickup" : offer.status}</div>
           <h4>{offer.quantity} {offer.unit} of {offer.itemName}</h4>
           <p>{naira.format(offer.pricePerUnit)} each · {naira.format(offer.quantity * offer.pricePerUnit)} total</p>
           <dl><div><dt>Trader</dt><dd>{offer.traderName}</dd></div><div><dt>Buyer</dt><dd>{offer.buyerName}</dd></div><div><dt>Pickup</dt><dd>{offer.pickupWindow}</dd></div></dl>

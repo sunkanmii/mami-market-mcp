@@ -14,6 +14,7 @@ import { useMemo, useState } from "react";
 import { naira } from "../lib/format";
 import { marketStore } from "../lib/store";
 import type { MarketState } from "../types";
+import { DemoOfferStatus } from "./DemoTrade";
 
 interface AssistPanelProps {
   state: MarketState;
@@ -212,25 +213,7 @@ function DraftReview({ state }: { state: MarketState }) {
   const draft = state.draft!;
   const item = state.inventory.find((entry) => entry.id === draft.itemId)!;
   const match = state.matches.find((entry) => entry.id === draft.matchId);
-  const isPublished = draft.status === "published";
-
-  if (isPublished) {
-    return (
-      <div className="published-card" aria-live="polite">
-        <span className="published-check" aria-hidden="true">
-          <CheckIcon weight="bold" />
-        </span>
-        <h3>{draft.quantity} {item.unit} are now reserved</h3>
-        <p>
-          {match?.buyerName ?? "Nearby buyers"} can see the offer. Your approval
-          created the only committed change in this flow.
-        </p>
-        <button className="secondary-button" type="button" onClick={() => marketStore.reset()}>
-          Run the demo again
-        </button>
-      </div>
-    );
-  }
+  if (draft.status !== "draft") return <DemoOfferStatus state={state} view="seller" />;
 
   return (
     <div className="draft-card" aria-live="polite">
@@ -279,11 +262,12 @@ function DraftReview({ state }: { state: MarketState }) {
       </dl>
 
       <p className="draft-note">{draft.note}</p>
+      {!match ? <p>Choose a buyer match before sending. Discard this draft to select one.</p> : null}
 
       <div className="draft-actions">
-        <button className="primary-button" type="button" onClick={() => marketStore.publishDraft()}>
+        <button className="primary-button" type="button" disabled={!match} onClick={() => marketStore.publishDraft()}>
           <CheckIcon weight="bold" aria-hidden="true" />
-          Approve and publish
+          Approve and send
         </button>
         <button className="discard-button" type="button" onClick={() => marketStore.discardDraft()}>
           <TrashIcon weight="bold" aria-hidden="true" />

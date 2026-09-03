@@ -12,6 +12,7 @@ import { AssistPanel } from "./components/AssistPanel";
 import { Brand } from "./components/Brand";
 import { InventoryWorkspace } from "./components/InventoryWorkspace";
 import { PilotNetwork } from "./components/PilotNetwork";
+import { DemoBuyerWorkspace, DemoRoleControls } from "./components/DemoTrade";
 import { marketStore, useMarketState } from "./lib/store";
 import { registerMarketTools } from "./lib/webmcp";
 
@@ -174,12 +175,15 @@ function App() {
           </button>
         </div>
 
+        <DemoRoleControls state={state} />
         <div className="workspace" id="workspace">
+          {state.sandboxRole === "buyer" ? <DemoBuyerWorkspace state={state} /> : <>
           <InventoryWorkspace
             inventory={state.inventory}
             selectedItemId={state.selectedItemId}
           />
           <AssistPanel state={state} />
+          </>}
         </div>
 
         <ActivityStrip activities={state.activities} />

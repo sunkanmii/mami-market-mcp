@@ -5,7 +5,7 @@ Trader Network is a WebMCP-enabled surplus-stock exchange for informal market tr
 The application now has two deliberately separated modes:
 
 - A closed, invite-only pilot backed by Cloudflare D1. Consenting traders and buyers can use different phones to post stock and demand, exchange an offer, and record whether pickup was completed.
-- A clearly labelled illustrative seller sandbox available to agents without a pilot profile. Registered participants never fall back to fictional data.
+- A clearly labelled illustrative sandbox with seller and buyer views, available without a pilot profile. Registered participants never fall back to fictional data.
 
 **Live application:** https://trader-network.pages.dev/
 
@@ -46,7 +46,16 @@ For the anonymous illustrative sandbox, the expected tool sequence is:
 3. `find_surplus_matches({ itemId: "tomatoes-roma", maxDistanceKm: 5 })`
 4. `draft_surplus_offer({ itemId: "tomatoes-roma", quantity: 6, pricePerUnit: 27500, matchId: "buyer-amaka" })`
 5. The trader reviews the visible draft and selects **Approve and send** or discards it.
-6. In the live pilot, the matched buyer accepts or declines on a separate device and either participant can record completed pickup.
+6. Switch to **Demo buyer** to accept or decline the same offer. Acceptance reserves illustrative stock and shows a placeholder contact handoff. **Simulate completed pickup** updates only sandbox stock and demand, never live pilot totals.
+7. In the live pilot, the matched buyer accepts or declines on a separate device and either participant can record completed pickup.
+
+## Browse and trade without an agent
+
+- Buyers see **Browse stock for sale**. Select a listing to prepare an editable request, then explicitly publish it. This is an open request to compatible traders, not a direct purchase or reservation from the selected seller.
+- Sellers see **Browse buyer requests**. A compatible stock line enables **Prepare offer**; review the draft under **Your offers & exchanges**, then approve and send it.
+- Search by product or area and filter listings by Available, Reserved, Closed, or All. Accepted offers reserve quantities; sent offers do not. Expired and withdrawn listings are closed without being counted as completed sales.
+- Both participants retain their offer history. An accepted offer awaits offline pickup; only a confirmed completed pickup appears as **Closed · pickup completed**.
+- Units include crates, baskets, bags, packs, kilograms, and **piece**. Both sides must use the same unit; the app does not assume packaging conversions.
 
 For live trading, use IDs returned by the tools, not the illustrative IDs above. Start with `get_trade_context` to confirm the role. A buyer can ask: "Read my requests, find compatible stock, and explain any offers sent to me." They can also ask the agent to prepare a request using the product, whole-number quantity, unit, maximum price (or open budget), future deadline with timezone, collection area and pickup/delivery preference. The editable draft appears under **Your buying assistant**; only **Approve and publish request** writes it to D1. Discarding never writes it, and unpublished drafts are lost on reload.
 

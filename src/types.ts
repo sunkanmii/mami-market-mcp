@@ -32,7 +32,7 @@ export interface OfferDraft {
   quantity: number;
   pricePerUnit: number;
   note: string;
-  status: "draft" | "published" | "reserved";
+  status: "draft" | "sent" | "accepted" | "declined" | "completed";
   createdBy: "human" | "agent";
 }
 
@@ -45,6 +45,7 @@ export interface ActivityItem {
 }
 
 export interface MarketState {
+  sandboxRole: "seller" | "buyer";
   inventory: InventoryItem[];
   matches: BuyerMatch[];
   selectedItemId: string;

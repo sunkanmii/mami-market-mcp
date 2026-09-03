@@ -650,6 +650,10 @@ img {
   gap: 14px;
 }
 
+.form-grid-wide {
+  grid-column: 1 / -1;
+}
+
 .consent-field {
   grid-template-columns: 22px minmax(0, 1fr) !important;
   align-items: start;
@@ -979,6 +983,102 @@ img {
   color: var(--ink);
   background: transparent;
   border-color: var(--line);
+}
+
+.private-handoff {
+  display: grid;
+  gap: 13px;
+  margin-top: 4px;
+  padding: 16px;
+  color: var(--ink);
+  background: #e4edcb;
+  border: 1px solid #a9bd72;
+  border-radius: 9px;
+}
+
+.private-handoff-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.private-handoff-heading > svg {
+  width: 28px;
+  height: 28px;
+  color: var(--leaf);
+}
+
+.private-handoff-heading span {
+  color: var(--leaf-bright);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.private-handoff-heading h5 {
+  margin: 2px 0 0;
+  font-size: 1rem;
+}
+
+.private-handoff dl {
+  margin: 0;
+}
+
+.private-handoff dl > div {
+  background: rgb(255 255 255 / 58%);
+}
+
+.contact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contact-actions a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 15px;
+  color: var(--surface);
+  background: var(--leaf);
+  border: 1px solid var(--leaf);
+  border-radius: 7px;
+  font-size: 0.875rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.contact-actions a:hover {
+  color: var(--leaf);
+  background: var(--surface);
+}
+
+.contact-actions svg {
+  width: 19px;
+  height: 19px;
+}
+
+.private-handoff > p,
+.contact-loading,
+.contact-error {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.private-handoff > p {
+  color: #47572c;
+}
+
+.contact-loading {
+  color: var(--ink-soft);
+}
+
+.contact-error {
+  color: #8a2e19;
 }
 
 .empty-record {

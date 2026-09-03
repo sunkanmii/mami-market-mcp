@@ -41,7 +41,7 @@ The expected tool sequence is:
 5. The trader reviews the visible draft and selects **Approve and send** or discards it.
 6. In the live pilot, the matched buyer accepts or declines on a separate device and either participant can record completed pickup.
 
-Payment, participant contact exchange, and delivery remain outside the platform. The pilot stores pseudonymous coordination records, not financial or identity documents.
+Payment and delivery remain outside the platform. Participants consent to storing a phone number and public meetup landmark; those details are excluded from network and matching responses and revealed only to the two participants after an offer is accepted. The pilot does not store financial records, identity documents, or verification photos.
 
 ## Run locally
 
@@ -79,14 +79,14 @@ The production deployment is hosted on Cloudflare Pages. It has been smoke-teste
 - Cloudflare Pages Functions API with prepared D1 queries and server-side validation
 - Cloudflare D1 tables for consenting participants, stock, demand, offers, pilot access, and visible activity
 - One external store shared by React and WebMCP callbacks
-- Per-device pilot profile plus versioned `localStorage` persistence for the illustrative demo
+- Per-device pilot profile and hashed participant session; phone and meetup details have a separate post-acceptance API
 - Runtime WebMCP feature detection with a normal-browser demo fallback
 - Phosphor icons and restrained GSAP motion with reduced-motion support
 - Shared offer lifecycle: draft → sent → accepted/declined → completed
 
 ## Hackathon scope
 
-This project was created during the OpenAI WebMCP Challenge submission period. It is intentionally limited to one measurable workflow: connecting time-sensitive surplus to compatible nearby demand. It is a facilitated, access-code-protected pilot rather than an open marketplace. Forecasting, payments, identity verification, and automated external messaging remain outside scope.
+This project was created during the OpenAI WebMCP Challenge submission period. It is intentionally limited to one measurable workflow: connecting time-sensitive surplus to compatible nearby demand. It is a facilitated, access-code-protected pilot rather than an open marketplace. Forecasting, payments, hosted identity-photo verification, and automated external messaging remain outside scope; accepted participants coordinate by phone or WhatsApp and verify the person and goods at pickup.
 
 See [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) for the video plan and [`docs/SUBMISSION_CHECKLIST.md`](docs/SUBMISSION_CHECKLIST.md) for the remaining release steps.
 

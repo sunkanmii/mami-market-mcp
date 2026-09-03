@@ -91,8 +91,44 @@ function enumField<T extends string>(body: JsonRecord, key: string, values: read
   return value as T;
 }
 
+function normalizePhoneNumber(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("0")) return `+234${digits.slice(1)}`;
+  if (digits.length === 13 && digits.startsWith("234")) return `+${digits}`;
+  if (value.trim().startsWith("+") && digits.length >= 8 && digits.length <= 15) return `+${digits}`;
+  throw new Error("Use a Nigerian mobile number or include the international country code.");
+}
+
 function newId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
+}
+
+async function hashText(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+interface ParticipantSession {
+  id: string;
+  role: "trader" | "buyer" | "facilitator";
+}
+
+async function authenticatedParticipant(
+  request: Request,
+  db: D1Database,
+): Promise<ParticipantSession | null> {
+  const authorization = request.headers.get("authorization") ?? "";
+  const token = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  if (!token) return null;
+  const tokenHash = await hashText(token);
+  return db.prepare(`
+    SELECT p.id, p.role
+    FROM pilot_access access
+    JOIN participants p ON p.id = access.participant_id
+    WHERE access.token_hash = ?
+      AND access.revoked_at IS NULL
+      AND access.expires_at > ?
+  `).bind(tokenHash, new Date().toISOString()).first<ParticipantSession>();
 }
 
 async function participant(
@@ -240,26 +276,50 @@ async function createParticipant(db: D1Database, body: JsonRecord): Promise<Resp
   const businessName = stringField(body, "businessName", { max: 80, optional: true });
   const marketName = stringField(body, "marketName", { max: 80, optional: true });
   const area = stringField(body, "area", { max: 80 })!;
+  const phoneNumber = normalizePhoneNumber(stringField(body, "phoneNumber", { min: 7, max: 25 })!);
+  const preferredContactMethod = enumField(body, "preferredContactMethod", [
+    "call", "whatsapp", "either",
+  ] as const);
+  const meetupLocation = stringField(body, "meetupLocation", { min: 3, max: 140 })!;
   if (body.consent !== true) throw new Error("Consent is required for the pilot.");
+  if (body.contactSharingConsent !== true) {
+    throw new Error("Consent is required before contact details can be shared after a match.");
+  }
 
   const id = newId(role);
   const consentedAt = new Date().toISOString();
-  await db
-    .prepare(`
+  const sessionToken = `${newId("pilot-session")}-${crypto.randomUUID()}`;
+  const tokenHash = await hashText(sessionToken);
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  await db.batch([
+    db.prepare(`
       INSERT INTO participants
-        (id, role, display_name, business_name, market_name, area, consented_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `)
-    .bind(id, role, displayName, businessName, marketName, area, consentedAt)
-    .run();
+        (id, role, display_name, business_name, market_name, area, phone_number,
+         preferred_contact_method, meetup_location, consented_at, contact_sharing_consented_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      id, role, displayName, businessName, marketName, area, phoneNumber,
+      preferredContactMethod, meetupLocation, consentedAt, consentedAt,
+    ),
+    db.prepare(`
+      INSERT INTO pilot_access (id, participant_id, token_hash, expires_at)
+      VALUES (?, ?, ?, ?)
+    `).bind(newId("access"), id, tokenHash, expiresAt),
+  ]);
 
   return json({
     participant: { id, role, displayName, businessName, marketName, area, consentedAt },
+    sessionToken,
   }, 201);
 }
 
-async function createInventory(db: D1Database, body: JsonRecord): Promise<Response> {
+async function createInventory(
+  db: D1Database,
+  body: JsonRecord,
+  actor: ParticipantSession,
+): Promise<Response> {
   const traderId = stringField(body, "traderId", { max: 80 })!;
+  if (traderId !== actor.id) return apiError(403, "This session cannot post stock for another participant.");
   const owner = await participant(db, traderId);
   if (!owner || (owner.role !== "trader" && owner.role !== "facilitator")) {
     return apiError(403, "A valid trader profile is required.");
@@ -299,8 +359,13 @@ async function createInventory(db: D1Database, body: JsonRecord): Promise<Respon
   return json({ inventory: { id, traderId, itemName, quantity, unit } }, 201);
 }
 
-async function createDemand(db: D1Database, body: JsonRecord): Promise<Response> {
+async function createDemand(
+  db: D1Database,
+  body: JsonRecord,
+  actor: ParticipantSession,
+): Promise<Response> {
   const buyerId = stringField(body, "buyerId", { max: 80 })!;
+  if (buyerId !== actor.id) return apiError(403, "This session cannot post demand for another participant.");
   const owner = await participant(db, buyerId);
   if (!owner || (owner.role !== "buyer" && owner.role !== "facilitator")) {
     return apiError(403, "A valid buyer profile is required.");
@@ -355,10 +420,15 @@ interface OfferCandidate {
   maximumPrice: number | null;
 }
 
-async function createOffer(db: D1Database, body: JsonRecord): Promise<Response> {
+async function createOffer(
+  db: D1Database,
+  body: JsonRecord,
+  actor: ParticipantSession,
+): Promise<Response> {
   const inventoryId = stringField(body, "inventoryId", { max: 80 })!;
   const demandId = stringField(body, "demandId", { max: 80 })!;
   const actorId = stringField(body, "actorId", { max: 80 })!;
+  if (actorId !== actor.id) return apiError(403, "This session cannot prepare an offer for another participant.");
   const candidate = await db.prepare(`
     SELECT i.id AS inventoryId, d.id AS demandId, i.trader_id AS traderId,
            d.buyer_id AS buyerId, i.item_name AS itemName, i.unit AS inventoryUnit,
@@ -433,11 +503,13 @@ async function updateOfferStatus(
   db: D1Database,
   offerId: string,
   body: JsonRecord,
+  actor: ParticipantSession,
 ): Promise<Response> {
   const nextStatus = enumField(body, "status", [
     "sent", "accepted", "declined", "completed", "cancelled",
   ] as const);
   const actorId = stringField(body, "actorId", { max: 80 })!;
+  if (actorId !== actor.id) return apiError(403, "This session cannot act for another participant.");
   const offer = await db.prepare(`
     SELECT o.id, o.status, i.trader_id AS traderId, d.buyer_id AS buyerId,
            o.inventory_id AS inventoryId, o.demand_id AS demandId,
@@ -544,6 +616,86 @@ async function updateOfferStatus(
   return json({ offer: { id: offerId, status: nextStatus, updatedAt: now } });
 }
 
+interface OfferContactRow {
+  status: string;
+  traderId: string;
+  traderName: string;
+  traderBusiness: string | null;
+  traderPhone: string | null;
+  traderContactMethod: "call" | "whatsapp" | "either" | null;
+  traderMeetupLocation: string | null;
+  buyerId: string;
+  buyerName: string;
+  buyerBusiness: string | null;
+  buyerPhone: string | null;
+  buyerContactMethod: "call" | "whatsapp" | "either" | null;
+  pickupArea: string;
+}
+
+async function getOfferContact(
+  db: D1Database,
+  offerId: string,
+  actor: ParticipantSession,
+): Promise<Response> {
+  const offer = await db.prepare(`
+    SELECT o.status,
+           seller.id AS traderId, seller.display_name AS traderName,
+           seller.business_name AS traderBusiness, seller.phone_number AS traderPhone,
+           seller.preferred_contact_method AS traderContactMethod,
+           seller.meetup_location AS traderMeetupLocation,
+           buyer.id AS buyerId, buyer.display_name AS buyerName,
+           buyer.business_name AS buyerBusiness, buyer.phone_number AS buyerPhone,
+           buyer.preferred_contact_method AS buyerContactMethod,
+           i.pickup_area AS pickupArea
+    FROM offers o
+    JOIN inventory i ON i.id = o.inventory_id
+    JOIN demands d ON d.id = o.demand_id
+    JOIN participants seller ON seller.id = i.trader_id
+    JOIN participants buyer ON buyer.id = d.buyer_id
+    WHERE o.id = ?
+  `).bind(offerId).first<OfferContactRow>();
+
+  if (!offer) return apiError(404, "Offer not found.");
+  if (actor.id !== offer.traderId && actor.id !== offer.buyerId) {
+    return apiError(403, "Only the matched trader and buyer can view these contact details.");
+  }
+  if (offer.status !== "accepted" && offer.status !== "completed") {
+    return apiError(409, "Contact details are revealed only after the buyer accepts the offer.");
+  }
+
+  const counterpart = actor.id === offer.traderId
+    ? {
+        displayName: offer.buyerName,
+        businessName: offer.buyerBusiness,
+        phoneNumber: offer.buyerPhone,
+        preferredContactMethod: offer.buyerContactMethod,
+      }
+    : {
+        displayName: offer.traderName,
+        businessName: offer.traderBusiness,
+        phoneNumber: offer.traderPhone,
+        preferredContactMethod: offer.traderContactMethod,
+      };
+  if (!counterpart.phoneNumber) {
+    return apiError(409, "The matched participant has not added a phone number yet.");
+  }
+  if (!offer.traderMeetupLocation) {
+    return apiError(409, "The trader has not added a meetup location yet.");
+  }
+
+  return json({
+    offerId,
+    contact: {
+      ...counterpart,
+      preferredContactMethod: counterpart.preferredContactMethod ?? "call",
+    },
+    pickup: {
+      area: offer.pickupArea,
+      meetupLocation: offer.traderMeetupLocation,
+    },
+  });
+}
+
 export const onRequest: PagesFunction<Bindings, "path"> = async (context) => {
   const { request, env } = context;
   const path = new URL(request.url).pathname.replace(/^\/api\/?/, "");
@@ -560,6 +712,19 @@ export const onRequest: PagesFunction<Bindings, "path"> = async (context) => {
       return getMatches(env.trader_network_db, request);
     }
 
+    const contactMatch = path.match(/^offers\/([^/]+)\/contact$/);
+    if (request.method === "GET" && contactMatch) {
+      const unauthorized = await requirePilotCode(request, env);
+      if (unauthorized) return unauthorized;
+      const actor = await authenticatedParticipant(request, env.trader_network_db);
+      if (!actor) return apiError(401, "This participant session is missing or expired.");
+      return getOfferContact(
+        env.trader_network_db,
+        decodeURIComponent(contactMatch[1]),
+        actor,
+      );
+    }
+
     if (["POST", "PATCH", "DELETE"].includes(request.method)) {
       const unauthorized = await requirePilotCode(request, env);
       if (unauthorized) return unauthorized;
@@ -568,22 +733,30 @@ export const onRequest: PagesFunction<Bindings, "path"> = async (context) => {
     if (request.method === "POST" && path === "participants") {
       return createParticipant(env.trader_network_db, await readBody(request));
     }
-    if (request.method === "POST" && path === "inventory") {
-      return createInventory(env.trader_network_db, await readBody(request));
-    }
-    if (request.method === "POST" && path === "demands") {
-      return createDemand(env.trader_network_db, await readBody(request));
-    }
-    if (request.method === "POST" && path === "offers") {
-      return createOffer(env.trader_network_db, await readBody(request));
-    }
     const statusMatch = path.match(/^offers\/([^/]+)\/status$/);
-    if (request.method === "PATCH" && statusMatch) {
-      return updateOfferStatus(
-        env.trader_network_db,
-        decodeURIComponent(statusMatch[1]),
-        await readBody(request),
-      );
+    const participantWrite =
+      (request.method === "POST" && ["inventory", "demands", "offers"].includes(path))
+      || (request.method === "PATCH" && Boolean(statusMatch));
+    if (participantWrite) {
+      const actor = await authenticatedParticipant(request, env.trader_network_db);
+      if (!actor) return apiError(401, "This participant session is missing or expired. Join the pilot again on this device.");
+      if (request.method === "POST" && path === "inventory") {
+        return createInventory(env.trader_network_db, await readBody(request), actor);
+      }
+      if (request.method === "POST" && path === "demands") {
+        return createDemand(env.trader_network_db, await readBody(request), actor);
+      }
+      if (request.method === "POST" && path === "offers") {
+        return createOffer(env.trader_network_db, await readBody(request), actor);
+      }
+      if (request.method === "PATCH" && statusMatch) {
+        return updateOfferStatus(
+          env.trader_network_db,
+          decodeURIComponent(statusMatch[1]),
+          await readBody(request),
+          actor,
+        );
+      }
     }
 
     return apiError(404, "API route not found.");

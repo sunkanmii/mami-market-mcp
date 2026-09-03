@@ -1,5 +1,6 @@
 export type PilotRole = "trader" | "buyer" | "facilitator";
 export type VerificationStatus = "unverified" | "contact_confirmed" | "in_person_confirmed";
+export type ContactMethod = "call" | "whatsapp" | "either";
 export type OfferStatus = "draft" | "sent" | "accepted" | "declined" | "completed" | "cancelled" | "expired";
 
 export interface PilotParticipant {
@@ -12,6 +13,20 @@ export interface PilotParticipant {
   verificationStatus?: VerificationStatus;
   consentedAt: string;
   createdAt?: string;
+}
+
+export interface PilotOfferContact {
+  offerId: string;
+  contact: {
+    displayName: string;
+    businessName: string | null;
+    phoneNumber: string;
+    preferredContactMethod: ContactMethod;
+  };
+  pickup: {
+    area: string;
+    meetupLocation: string;
+  };
 }
 
 export interface PilotInventory {
@@ -115,7 +130,8 @@ export interface PilotMatch {
 }
 
 const CODE_KEY = "trader-network-pilot-code-v1";
-const PROFILE_KEY = "trader-network-pilot-profile-v1";
+const PROFILE_KEY = "trader-network-pilot-profile-v2";
+const SESSION_KEY = "trader-network-participant-session-v2";
 
 export class PilotApiError extends Error {
   constructor(
@@ -136,6 +152,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (init?.body) headers.set("content-type", "application/json");
   const code = getPilotCode();
   if (code) headers.set("x-pilot-code", code);
+  const sessionToken = window.localStorage.getItem(SESSION_KEY);
+  if (sessionToken) headers.set("authorization", `Bearer ${sessionToken}`);
 
   const response = await fetch(path, { ...init, headers });
   const contentType = response.headers.get("content-type") ?? "";
@@ -166,11 +184,13 @@ export const pilotApi = {
       return null;
     }
   },
-  saveProfile(profile: PilotParticipant): void {
+  saveProfile(profile: PilotParticipant, sessionToken?: string): void {
     window.localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    if (sessionToken) window.localStorage.setItem(SESSION_KEY, sessionToken);
   },
   clearProfile(): void {
     window.localStorage.removeItem(PROFILE_KEY);
+    window.localStorage.removeItem(SESSION_KEY);
     window.sessionStorage.removeItem(CODE_KEY);
   },
   getNetwork(): Promise<PilotSnapshot> {
@@ -187,8 +207,12 @@ export const pilotApi = {
     businessName?: string;
     marketName?: string;
     area: string;
-    consent: true;
-  }): Promise<{ participant: PilotParticipant }> {
+    phoneNumber: string;
+    preferredContactMethod: ContactMethod;
+    meetupLocation: string;
+    consent: boolean;
+    contactSharingConsent: boolean;
+  }): Promise<{ participant: PilotParticipant; sessionToken: string }> {
     return request("/api/participants", { method: "POST", body: JSON.stringify(input) });
   },
   createInventory(input: Record<string, unknown>): Promise<unknown> {
@@ -205,5 +229,8 @@ export const pilotApi = {
       method: "PATCH",
       body: JSON.stringify({ status, actorId }),
     });
+  },
+  getOfferContact(offerId: string): Promise<PilotOfferContact> {
+    return request(`/api/offers/${encodeURIComponent(offerId)}/contact`);
   },
 };

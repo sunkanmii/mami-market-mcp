@@ -6,20 +6,25 @@ import {
   DatabaseIcon,
   MapPinIcon,
   PackageIcon,
+  PhoneIcon,
+  ShieldCheckIcon,
   ShoppingCartIcon,
   SignOutIcon,
   StorefrontIcon,
   WarningCircleIcon,
+  WhatsappLogoIcon,
 } from "@phosphor-icons/react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { naira } from "../lib/format";
 import {
   PilotApiError,
   pilotApi,
+  type ContactMethod,
   type OfferStatus,
   type PilotInventory,
   type PilotMatch,
   type PilotOffer,
+  type PilotOfferContact,
   type PilotParticipant,
   type PilotRole,
   type PilotSnapshot,
@@ -114,9 +119,13 @@ export function PilotNetwork() {
         businessName: field(form, "businessName"),
         marketName: field(form, "marketName"),
         area: field(form, "area"),
-        consent: true,
+        phoneNumber: field(form, "phoneNumber"),
+        preferredContactMethod: field(form, "preferredContactMethod") as ContactMethod,
+        meetupLocation: field(form, "meetupLocation"),
+        consent: form.get("consent") === "on",
+        contactSharingConsent: form.get("contactSharingConsent") === "on",
       });
-      pilotApi.saveProfile(result.participant);
+      pilotApi.saveProfile(result.participant, result.sessionToken);
       setProfile(result.participant);
       setHasAccessCode(true);
     }, "Your pilot profile is ready on this device.");
@@ -206,8 +215,8 @@ export function PilotNetwork() {
               </button>
             </div>
             <p>
-              Use a pseudonym or first name for public testing. Contact details
-              stay with the pilot facilitator and are not stored here.
+              Use a pseudonym or first name publicly. Your phone number and exact
+              meetup point stay private until a matched offer is accepted.
             </p>
           </div>
 
@@ -238,10 +247,48 @@ export function PilotNetwork() {
                 Area
                 <input name="area" maxLength={80} required placeholder="e.g. Ketu" />
               </label>
+              <label>
+                Phone or WhatsApp number
+                <input
+                  name="phoneNumber"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  minLength={7}
+                  maxLength={25}
+                  required
+                  placeholder="e.g. +234 803 000 0000"
+                />
+              </label>
+              <label>
+                Preferred contact
+                <select name="preferredContactMethod" defaultValue="either" required>
+                  <option value="either">Call or WhatsApp</option>
+                  <option value="call">Phone call</option>
+                  <option value="whatsapp">WhatsApp</option>
+                </select>
+              </label>
+              <label className="form-grid-wide">
+                Safe meetup point or stall landmark
+                <input
+                  name="meetupLocation"
+                  maxLength={140}
+                  required
+                  placeholder="e.g. Tomato shed B, beside the union office"
+                />
+                <small>Use a public stall or landmark—not a private home address.</small>
+              </label>
             </div>
             <label className="consent-field">
               <input name="consent" type="checkbox" required />
               <span>I agree that this pseudonymous activity may be used to evaluate this pilot.</span>
+            </label>
+            <label className="consent-field">
+              <input name="contactSharingConsent" type="checkbox" required />
+              <span>
+                I agree that my phone number and meetup details may be shown only
+                to the matched person after an offer is accepted.
+              </span>
             </label>
             <button className="primary-button" type="submit" disabled={busy}>
               {busy ? "Connecting…" : `Join as ${joinRole}`}
@@ -523,7 +570,7 @@ function OfferList({ offers, profile, busy, runMutation }: {
     runMutation(
       () => pilotApi.updateOfferStatus(offer.id, status, profile.id),
       status === "sent" ? "The buyer can now review this offer on their device."
-        : status === "accepted" ? "Offer accepted. Arrange collection outside the platform."
+        : status === "accepted" ? "Offer accepted. Private contact and meetup details are now available to both people."
           : status === "completed" ? "Exchange completed and counted in the pilot results."
             : `Offer ${status}.`,
     );
@@ -540,10 +587,81 @@ function OfferList({ offers, profile, busy, runMutation }: {
           <div className="offer-actions">
             {profile.role === "trader" && offer.status === "draft" ? <button type="button" onClick={() => void act(offer, "sent")} disabled={busy}>Approve and send</button> : null}
             {profile.role === "buyer" && offer.status === "sent" ? <><button type="button" onClick={() => void act(offer, "accepted")} disabled={busy}>Accept offer</button><button className="quiet-button" type="button" onClick={() => void act(offer, "declined")} disabled={busy}>Decline</button></> : null}
-            {offer.status === "accepted" ? <button type="button" onClick={() => void act(offer, "completed")} disabled={busy}>Mark pickup complete</button> : null}
+            {offer.status === "accepted" ? <button type="button" onClick={() => void act(offer, "completed")} disabled={busy}>Verified pickup &amp; complete</button> : null}
           </div>
+          {offer.status === "accepted" || offer.status === "completed" ? (
+            <OfferContactPanel offer={offer} />
+          ) : null}
         </article>
       )) : <EmptyRecord icon="offer" text={profile.role === "trader" ? "Prepared offers will appear here for approval." : "Offers sent by matched traders will appear here."} />}
+    </section>
+  );
+}
+
+function OfferContactPanel({ offer }: { offer: PilotOffer }) {
+  const [details, setDetails] = useState<PilotOfferContact | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    pilotApi.getOfferContact(offer.id)
+      .then((result) => {
+        if (active) setDetails(result);
+      })
+      .catch((cause: unknown) => {
+        if (active) setError(cause instanceof Error ? cause.message : "Contact details could not be loaded.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [offer.id]);
+
+  if (error) return <p className="contact-error" role="alert">{error}</p>;
+  if (!details) return <div className="contact-loading" role="status">Loading private handoff details…</div>;
+
+  const phoneDigits = details.contact.phoneNumber.replace(/\D/g, "");
+  const canCall = details.contact.preferredContactMethod !== "whatsapp";
+  const canWhatsApp = details.contact.preferredContactMethod !== "call";
+
+  return (
+    <section className="private-handoff" aria-label="Private contact and pickup details">
+      <div className="private-handoff-heading">
+        <ShieldCheckIcon weight="duotone" aria-hidden="true" />
+        <div>
+          <span>Private after acceptance</span>
+          <h5>Coordinate the offline pickup</h5>
+        </div>
+      </div>
+      <dl>
+        <div>
+          <dt>Contact</dt>
+          <dd>{details.contact.businessName || details.contact.displayName}</dd>
+        </div>
+        <div>
+          <dt>Phone</dt>
+          <dd>{details.contact.phoneNumber}</dd>
+        </div>
+        <div>
+          <dt>Meetup</dt>
+          <dd>{details.pickup.meetupLocation}, {details.pickup.area}</dd>
+        </div>
+      </dl>
+      <div className="contact-actions">
+        {canCall ? (
+          <a href={`tel:${details.contact.phoneNumber}`}>
+            <PhoneIcon weight="fill" aria-hidden="true" />Call
+          </a>
+        ) : null}
+        {canWhatsApp ? (
+          <a href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noreferrer">
+            <WhatsappLogoIcon weight="fill" aria-hidden="true" />WhatsApp
+          </a>
+        ) : null}
+      </div>
+      <p>
+        At pickup, verify the person, stall and goods in person. Trader Network
+        does not upload identity photos or documents in this pilot.
+      </p>
     </section>
   );
 }

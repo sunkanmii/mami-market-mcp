@@ -13,6 +13,7 @@
 - [x] Cloudflare Pages Functions connected to remote D1
 - [x] Two-device seller/buyer offer lifecycle implemented
 - [x] Server-side validation and protected writes
+- [x] Consent-based private contact handoff after offer acceptance
 - [ ] Test the deployed URL in WebMCP-enabled Chrome
 
 ## Repository

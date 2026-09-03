@@ -30,6 +30,11 @@ Point out the draft banner and say:
 
 Select **Approve and send**. Switch to the buyer device, accept the offer, then record completed pickup. Point out that both devices read the same D1 transaction state.
 
+After acceptance, briefly show that the two matched participants can reveal the
+private phone/WhatsApp and stall landmark needed to arrange pickup. Explain that
+these fields are absent from public matching results and inaccessible to unrelated
+participants. Use test numbers or blur real numbers in the recording.
+
 ## 2:05–2:30 — Close
 
 “WebMCP makes the agent useful without removing either person’s control. This closed pilot demonstrates one measurable path from genuine surplus and demand to an accepted, completed local exchange.”
@@ -41,4 +46,5 @@ End on the shared activity record or success state.
 - Keep the final video under 3 minutes.
 - Include audible narration.
 - Do not include unlicensed music, private tabs, notifications, or third-party trademarks.
+- Do not expose a real participant's phone number or precise meetup details in the video.
 - Upload publicly to YouTube and verify playback in a signed-out window.

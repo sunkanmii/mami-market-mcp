@@ -74,6 +74,10 @@ npm run dev
 
 Then open `http://localhost:5173`.
 
+Vite proxies `/api` to a Pages backend at `http://127.0.0.1:8788` by default; Vite alone does not run D1 or Pages Functions. Start the local backend below for isolated development.
+
+To deliberately connect the development UI to the real pilot, create an ignored `.env.development.local` file containing `PILOT_API_TARGET=https://trader-network.pages.dev`, then restart Vite. **Form submissions in that mode affect real pilot data.** Use mocks or local D1 for automated tests. Remove that override to return to the local backend. The proxy does not change the production site's same-origin API or transfer participant sessions between browser origins.
+
 For the complete Pages Functions + local D1 workflow, follow [`docs/D1_SETUP.md`](docs/D1_SETUP.md), build, and run:
 
 ```bash

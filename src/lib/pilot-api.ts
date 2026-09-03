@@ -157,12 +157,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   const response = await fetch(path, { ...init, headers });
   const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    const local = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+    throw new PilotApiError(local
+      ? "The local app cannot reach its API. Start the Pages backend or configure PILOT_API_TARGET, then restart Vite. You can also use trader-network.pages.dev."
+      : `The pilot API returned an unexpected response (HTTP ${response.status}). Please reload and try again.`, response.status);
+  }
   const data = contentType.includes("application/json")
     ? ((await response.json()) as { error?: string })
     : null;
   if (!response.ok) {
     throw new PilotApiError(data?.error ?? "The pilot network is temporarily unavailable.", response.status);
   }
+  if (data === null || typeof data !== "object") throw new PilotApiError("The pilot API returned an empty response. Please try again.", response.status);
   return data as T;
 }
 

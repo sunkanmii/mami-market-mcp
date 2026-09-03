@@ -24,6 +24,11 @@ const toolNames = [
   "show_inventory_item",
   "find_surplus_matches",
   "draft_surplus_offer",
+  "get_trade_context",
+  "get_my_requests",
+  "find_stock_for_request",
+  "review_incoming_offers",
+  "draft_purchase_request",
 ];
 
 export function AssistPanel({ state }: AssistPanelProps) {
@@ -77,7 +82,7 @@ export function AssistPanel({ state }: AssistPanelProps) {
         <p>
           <strong>
             {state.webMcpStatus === "connected"
-              ? "4 WebMCP tools active"
+              ? "WebMCP tools active"
               : state.webMcpStatus === "checking"
                 ? "Checking WebMCP support"
                 : "Illustrative sandbox active"}
@@ -197,6 +202,7 @@ export function AssistPanel({ state }: AssistPanelProps) {
             </li>
           ))}
         </ul>
+        <p>Buyer tools require a live buyer profile. The seller sandbox is available only to agents without a live profile.</p>
       </details>
     </aside>
   );

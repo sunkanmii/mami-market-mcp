@@ -15,6 +15,8 @@ import {
 } from "@phosphor-icons/react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { naira } from "../lib/format";
+import { BuyerAgentPanel } from "./BuyerAgentPanel";
+import { buyerAgent } from "../lib/buyer-agent";
 import {
   PilotApiError,
   pilotApi,
@@ -140,6 +142,7 @@ export function PilotNetwork() {
   };
 
   const leavePilot = () => {
+    buyerAgent.reset();
     pilotApi.clearProfile();
     setProfile(null);
     setHasAccessCode(false);
@@ -524,6 +527,8 @@ function BuyerPilot({ profile, snapshot, busy, runMutation }: PilotRoleProps) {
   };
 
   return (
+    <>
+    <BuyerAgentPanel profile={profile} busy={busy} runMutation={runMutation} />
     <div className="pilot-role-grid">
       <form className="pilot-form" onSubmit={(event) => void submitDemand(event)}>
         <div className="form-heading"><span>Buyer input</span><h3>Post goods you need to source</h3></div>
@@ -548,7 +553,7 @@ function BuyerPilot({ profile, snapshot, busy, runMutation }: PilotRoleProps) {
             <span><strong>{waitingOffers} offer{waitingOffers === 1 ? "" : "s"} waiting</strong>Review and accept before arranging pickup.</span>
           </div>
         ) : null}
-        <OfferList offers={offers} profile={profile} busy={busy} runMutation={runMutation} />
+        <OfferList offers={offers.filter((offer) => offer.status !== "draft")} profile={profile} busy={busy} runMutation={runMutation} />
         <div className="records-heading"><div><span>Buyer workspace</span><h3>Your open requests</h3></div><strong>{demands.length}</strong></div>
         {demands.length ? demands.map((demand) => (
           <article className="pilot-record-card" key={demand.id}>
@@ -562,6 +567,7 @@ function BuyerPilot({ profile, snapshot, busy, runMutation }: PilotRoleProps) {
         )) : <EmptyRecord icon="demand" text="Post one genuine buyer request to make demand visible to traders." />}
       </div>
     </div>
+    </>
   );
 }
 

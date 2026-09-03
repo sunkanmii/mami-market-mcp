@@ -5,9 +5,10 @@ import { registerMarketTools } from "./webmcp";
 describe("WebMCP registration", () => {
   beforeEach(() => {
     marketStore.reset();
+    window.localStorage.clear();
   });
 
-  it("registers four focused tools and returns structured urgent inventory", async () => {
+  it("registers role-aware tools and returns labelled sandbox inventory without a profile", async () => {
     const registered: WebMCP.ModelContextTool[] = [];
     const registerTool = vi.fn(async (tool: WebMCP.ModelContextTool) => {
       registered.push(tool);
@@ -19,12 +20,17 @@ describe("WebMCP registration", () => {
     });
 
     const unregister = await registerMarketTools();
-    expect(registerTool).toHaveBeenCalledTimes(4);
+    expect(registerTool).toHaveBeenCalledTimes(9);
     expect(registered.map((tool) => tool.name)).toEqual([
       "get_inventory",
       "show_inventory_item",
       "find_surplus_matches",
       "draft_surplus_offer",
+      "get_trade_context",
+      "get_my_requests",
+      "find_stock_for_request",
+      "review_incoming_offers",
+      "draft_purchase_request",
     ]);
 
     const inventoryTool = registered.find((tool) => tool.name === "get_inventory")!;

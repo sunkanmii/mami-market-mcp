@@ -1,5 +1,6 @@
 import { marketStore } from "./store";
 import { pilotApi, type PilotInventory } from "./pilot-api";
+import { buyerTools } from "./buyer-tools";
 
 interface InventoryInput extends Record<string, unknown> {
   urgentOnly?: boolean;
@@ -35,6 +36,7 @@ function openIllustrativeWorkspace(): void {
 
 function liveTrader() {
   const profile = pilotApi.loadProfile();
+  if (profile && profile.role !== "trader") throw new Error("Seller-only tool. This device is registered as a buyer; use get_my_requests, find_stock_for_request, review_incoming_offers, or draft_purchase_request. No illustrative data was used.");
   return profile?.role === "trader" ? profile : null;
 }
 
@@ -60,7 +62,7 @@ export async function registerMarketTools(): Promise<() => void> {
           name: "get_inventory",
           title: "Review trader inventory",
           description:
-            "Returns the trader's current inventory, availability, price, and freshness window. Use urgentOnly to focus on perishable stock that should move within 48 hours.",
+            "Seller only (or illustrative sandbox without a profile). Returns the trader's inventory, availability, price, and freshness window. Use urgentOnly for perishable stock within 48 hours. Buyers must use find_stock_for_request.",
           inputSchema: {
             type: "object",
             properties: {
@@ -105,7 +107,7 @@ export async function registerMarketTools(): Promise<() => void> {
           name: "show_inventory_item",
           title: "Show an inventory item",
           description:
-            "Focuses the visible Trader Network workspace on one inventory item so the trader and agent review the same stock together.",
+            "Seller only (or illustrative sandbox without a profile). Shows the workspace containing the selected stock so the trader and agent can review it together.",
           inputSchema: {
             type: "object",
             properties: {
@@ -146,7 +148,7 @@ export async function registerMarketTools(): Promise<() => void> {
           name: "find_surplus_matches",
           title: "Find nearby demand",
           description:
-            "Returns compatible buyer demand for an inventory item. Live pilot matches use shared D1 records; the illustrative fallback is clearly identified. This is a read-only lookup.",
+            "Seller only (or illustrative sandbox without a profile). Returns compatible buyer demand for the trader's stock using D1 records. This is a read-only lookup; live areas are labels, not measured distances.",
           inputSchema: {
             type: "object",
             properties: {
@@ -159,7 +161,7 @@ export async function registerMarketTools(): Promise<() => void> {
                 minimum: 0.1,
                 maximum: 100,
                 default: 10,
-                description: "Maximum buyer distance in kilometres.",
+                description: "Illustrative sandbox only. Live matching uses area labels, not measured distances; this parameter does not filter live records.",
               },
             },
             required: ["itemId"],
@@ -169,6 +171,8 @@ export async function registerMarketTools(): Promise<() => void> {
             const { itemId, maxDistanceKm = 10 } = input as MatchInput;
             const trader = liveTrader();
             if (trader) {
+              const snapshot = await pilotApi.getNetwork();
+              if (!snapshot.inventory.some((item) => item.id === itemId && item.traderId === trader.id)) throw new Error("This stock does not belong to the current trader.");
               const { matches } = await pilotApi.getMatches(itemId);
               return response(
                 `Found ${matches.length} compatible live ${matches.length === 1 ? "request" : "requests"}.`,
@@ -189,7 +193,7 @@ export async function registerMarketTools(): Promise<() => void> {
           name: "draft_surplus_offer",
           title: "Prepare a surplus offer",
           description:
-            "Prepares a reversible offer draft in the visible workspace. This tool never publishes or reserves inventory; the trader must review and approve the draft in the page.",
+            "Seller only (or illustrative sandbox without a profile). Prepares a reversible offer draft in the visible workspace. Never sends or reserves inventory; the trader must review and approve it in the page.",
           inputSchema: {
             type: "object",
             properties: {
@@ -258,6 +262,7 @@ export async function registerMarketTools(): Promise<() => void> {
         },
         options,
       ),
+      ...buyerTools().map((tool) => modelContext.registerTool(tool, options)),
     ]);
 
     marketStore.setWebMcpStatus("connected");

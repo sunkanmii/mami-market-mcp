@@ -129,13 +129,13 @@ function App() {
             <HandshakeIcon weight="duotone" aria-hidden="true" />
             <span>
               <strong>Agent prepares</strong>
-              Matches demand and drafts the offer.
+              Finds stock or demand and prepares drafts.
             </span>
           </div>
           <div>
             <CheckCircleIcon weight="duotone" aria-hidden="true" />
             <span>
-              <strong>Trader decides</strong>
+              <strong>People decide</strong>
               Nothing publishes without approval.
             </span>
           </div>

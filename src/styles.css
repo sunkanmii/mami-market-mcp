@@ -641,6 +641,32 @@ img {
   line-height: 1.5;
 }
 
+.buyer-agent-panel {
+  margin: 24px 0;
+  padding: 24px;
+  background: #e8efd8;
+  border: 1px solid #bfcca5;
+  border-radius: var(--radius-sm);
+  scroll-margin-top: 24px;
+}
+.buyer-agent-panel h3, .buyer-agent-panel h4, .buyer-agent-panel h5 { margin: 0; }
+.buyer-agent-panel > h3 { font-size: 1.375rem; }
+.buyer-agent-panel p { line-height: 1.5; overflow-wrap: anywhere; }
+.buyer-agent-panel h3, .buyer-agent-panel h4, .buyer-agent-panel h5 { overflow-wrap: anywhere; }
+.buyer-agent-panel > blockquote { margin: 16px 0; padding-left: 16px; border-left: 3px solid var(--leaf); font-size: 1rem; }
+.buyer-request-draft, .buyer-stock-results { margin-top: 24px; }
+.buyer-request-draft { background: var(--surface); }
+.buyer-stock-results > h4 { font-size: 1.125rem; }
+.buyer-stock-result { padding: 16px 0; border-top: 1px solid #bfcca5; }
+.buyer-stock-result h5 { font-size: 1rem; }
+.buyer-stock-result p { margin: 6px 0 0; }
+.buyer-request-draft .offer-actions button { min-height: 48px; padding: 10px 12px; }
+@media (max-width: 620px) {
+  .buyer-agent-panel { padding: 16px; }
+  .buyer-request-draft .offer-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .buyer-request-draft .offer-actions button { width: 100%; }
+}
+
 .participant-bar {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) auto;

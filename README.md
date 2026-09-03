@@ -88,8 +88,6 @@ The production deployment is hosted on Cloudflare Pages. It has been smoke-teste
 
 This project was created during the OpenAI WebMCP Challenge submission period. It is intentionally limited to one measurable workflow: connecting time-sensitive surplus to compatible nearby demand. It is a facilitated, access-code-protected pilot rather than an open marketplace. Forecasting, payments, hosted identity-photo verification, and automated external messaging remain outside scope; accepted participants coordinate by phone or WhatsApp and verify the person and goods at pickup.
 
-See [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) for the video plan and [`docs/SUBMISSION_CHECKLIST.md`](docs/SUBMISSION_CHECKLIST.md) for the remaining release steps.
-
 ## Assets and licenses
 
 - Source code: [MIT](LICENSE)

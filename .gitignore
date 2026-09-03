@@ -6,3 +6,5 @@ dist
 *.local
 *.log
 /design-system
+/docs/DEMO_SCRIPT.md
+/docs/SUBMISSION_CHECKLIST.md

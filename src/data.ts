@@ -65,7 +65,7 @@ export const matches: BuyerMatch[] = [
     maxPricePerUnit: 27500,
     distanceKm: 3.2,
     pickupWindow: "Today, 4–6 PM",
-    trustScore: 94,
+    matchScore: 94,
   },
   {
     id: "buyer-bisi",
@@ -76,7 +76,7 @@ export const matches: BuyerMatch[] = [
     maxPricePerUnit: 26800,
     distanceKm: 4.8,
     pickupWindow: "Today, before 7 PM",
-    trustScore: 89,
+    matchScore: 89,
   },
   {
     id: "buyer-salihu",
@@ -87,7 +87,7 @@ export const matches: BuyerMatch[] = [
     maxPricePerUnit: 16900,
     distanceKm: 1.1,
     pickupWindow: "Tomorrow, 7–9 AM",
-    trustScore: 97,
+    matchScore: 97,
   },
   {
     id: "buyer-ijeoma",
@@ -98,7 +98,7 @@ export const matches: BuyerMatch[] = [
     maxPricePerUnit: 5100,
     distanceKm: 6.4,
     pickupWindow: "Tomorrow, before noon",
-    trustScore: 91,
+    matchScore: 91,
   },
 ];
 

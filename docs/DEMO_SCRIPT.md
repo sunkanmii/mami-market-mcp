@@ -6,7 +6,7 @@ Target runtime: 2 minutes 30 seconds. Record in English at 1440 × 900 or a simi
 
 “Informal market traders can lose margin when perishable stock does not move quickly. Trader Network gives a trader and a browser agent one shared place to find nearby demand and prepare a safe offer.”
 
-Show the inventory workspace and the freshness window on Roma tomatoes.
+Show the live pilot totals, then the seller and buyer role choices.
 
 ## 0:20–0:45 — Why WebMCP
 
@@ -18,7 +18,7 @@ Open **Inspect exposed tools**.
 
 Ask the browser agent:
 
-> Review my urgent inventory. Find a trusted buyer within 5 km for the tomatoes and prepare a fair offer for me to approve.
+> Review my urgent inventory. Find a compatible buyer for the tomatoes and prepare a fair offer for me to approve.
 
 Show the agent invoke inventory, item focus, demand matching, and draft preparation. Keep the page visible as the workspace changes.
 
@@ -28,11 +28,11 @@ Point out the draft banner and say:
 
 “The agent has prepared an offer, but it has not published or reserved stock. The trader can inspect the buyer, quantity, price, pickup window, and total.”
 
-Select **Approve and publish**. Show the success state and activity history.
+Select **Approve and send**. Switch to the buyer device, accept the offer, then record completed pickup. Point out that both devices read the same D1 transaction state.
 
 ## 2:05–2:30 — Close
 
-“WebMCP makes the agent reliable without removing the human interface or the trader’s control. This prototype demonstrates one complete path from urgent stock to an approved local offer.”
+“WebMCP makes the agent useful without removing either person’s control. This closed pilot demonstrates one measurable path from genuine surplus and demand to an accepted, completed local exchange.”
 
 End on the shared activity record or success state.
 
@@ -42,4 +42,3 @@ End on the shared activity record or success state.
 - Include audible narration.
 - Do not include unlicensed music, private tabs, notifications, or third-party trademarks.
 - Upload publicly to YouTube and verify playback in a signed-out window.
-

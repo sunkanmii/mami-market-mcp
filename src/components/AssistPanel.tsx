@@ -34,7 +34,7 @@ export function AssistPanel({ state }: AssistPanelProps) {
     () =>
       state.matches
         .filter((match) => match.itemId === item.id)
-        .toSorted((left, right) => right.trustScore - left.trustScore),
+        .toSorted((left, right) => right.matchScore - left.matchScore),
     [item.id, state.matches],
   );
   const [activeMatchId, setActiveMatchId] = useState<string | null>(
@@ -95,7 +95,7 @@ export function AssistPanel({ state }: AssistPanelProps) {
           <div className="prompt-card">
             <span>Try asking your browser agent</span>
             <blockquote>
-              “I need to move my urgent stock today. Find a trusted buyer and
+              “I need to move my urgent stock today. Find a compatible buyer and
               prepare a fair offer for me to review.”
             </blockquote>
             <button
@@ -111,7 +111,7 @@ export function AssistPanel({ state }: AssistPanelProps) {
 
           <div className="match-block">
             <div className="match-title-row">
-              <h3>Verified demand nearby</h3>
+              <h3>Illustrative demand nearby</h3>
               <span>{itemMatches.length} matches</span>
             </div>
 
@@ -137,9 +137,9 @@ export function AssistPanel({ state }: AssistPanelProps) {
                             {match.distanceKm} km · {match.market}
                           </small>
                         </span>
-                        <span className="trust-score">
+                        <span className="fit-score">
                           <SealCheckIcon weight="fill" aria-hidden="true" />
-                          {match.trustScore}%
+                          {match.matchScore}% fit
                         </span>
                       </button>
                       {isActive ? (

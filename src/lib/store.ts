@@ -7,7 +7,7 @@ import type {
   OfferDraft,
 } from "../types";
 
-const STORAGE_KEY = "trader-network-demo-v1";
+const STORAGE_KEY = "trader-network-demo-v2";
 
 interface FindMatchInput {
   itemId: string;
@@ -131,8 +131,8 @@ class MarketStore {
           match.itemId === itemId && match.distanceKm <= maxDistanceKm,
       )
       .toSorted((left, right) => {
-        const leftValue = left.trustScore - left.distanceKm * 2;
-        const rightValue = right.trustScore - right.distanceKm * 2;
+        const leftValue = left.matchScore - left.distanceKm * 2;
+        const rightValue = right.matchScore - right.distanceKm * 2;
         return rightValue - leftValue;
       });
 

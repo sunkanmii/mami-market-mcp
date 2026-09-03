@@ -1,4 +1,5 @@
 import { marketStore } from "./store";
+import { pilotApi, type PilotInventory } from "./pilot-api";
 
 interface InventoryInput extends Record<string, unknown> {
   urgentOnly?: boolean;
@@ -26,6 +27,16 @@ function response(message: string, data: unknown) {
     content: [{ type: "text", text: message }],
     structuredContent: data,
   };
+}
+
+function liveTrader() {
+  const profile = pilotApi.loadProfile();
+  return profile?.role === "trader" ? profile : null;
+}
+
+function liveExpiryHours(item: PilotInventory): number | null {
+  if (!item.availableUntil) return null;
+  return Math.max(0, Math.round((new Date(item.availableUntil).getTime() - Date.now()) / 3_600_000));
 }
 
 export async function registerMarketTools(): Promise<() => void> {
@@ -58,12 +69,28 @@ export async function registerMarketTools(): Promise<() => void> {
             },
           },
           annotations: { readOnlyHint: true },
-          execute(input) {
+          async execute(input) {
             const { urgentOnly = false } = input as InventoryInput;
+            const trader = liveTrader();
+            if (trader) {
+              const snapshot = await pilotApi.getNetwork();
+              const items = snapshot.inventory
+                .filter((item) => item.traderId === trader.id)
+                .filter((item) => ["available", "partially_matched"].includes(item.status))
+                .filter((item) => {
+                  const hours = liveExpiryHours(item);
+                  return !urgentOnly || (hours !== null && hours <= 48);
+                })
+                .map((item) => ({ ...item, expiresInHours: liveExpiryHours(item) }));
+              return response(
+                `Found ${items.length} live inventory ${items.length === 1 ? "item" : "items"} for ${trader.displayName}.`,
+                { source: "cloudflare-d1", items },
+              );
+            }
             const items = marketStore.listInventory(urgentOnly);
             return response(
               `Found ${items.length} inventory ${items.length === 1 ? "item" : "items"}.`,
-              { items },
+              { source: "illustrative-demo", items },
             );
           },
         },
@@ -85,8 +112,22 @@ export async function registerMarketTools(): Promise<() => void> {
             },
             required: ["itemId"],
           },
-          execute(input) {
+          async execute(input) {
             const { itemId } = input as FocusInput;
+            const trader = liveTrader();
+            if (trader) {
+              const snapshot = await pilotApi.getNetwork();
+              const item = snapshot.inventory.find(
+                (entry) => entry.id === itemId && entry.traderId === trader.id,
+              );
+              if (!item) throw new Error(`Live inventory item "${itemId}" was not found for this trader.`);
+              document.getElementById("pilot")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              return response("The live pilot workspace is now visible for review.", {
+                source: "cloudflare-d1",
+                selectedItemId: itemId,
+                item,
+              });
+            }
             marketStore.selectItem(itemId, "agent");
             return response("The item is now visible in the shared workspace.", {
               selectedItemId: itemId,
@@ -100,7 +141,7 @@ export async function registerMarketTools(): Promise<() => void> {
           name: "find_surplus_matches",
           title: "Find nearby demand",
           description:
-            "Returns verified nearby buyers who currently need a specific inventory item. This is a read-only lookup; use show_inventory_item separately when the trader should review that stock in the visible workspace.",
+            "Returns compatible buyer demand for an inventory item. Live pilot matches use shared D1 records; the illustrative fallback is clearly identified. This is a read-only lookup.",
           inputSchema: {
             type: "object",
             properties: {
@@ -119,12 +160,20 @@ export async function registerMarketTools(): Promise<() => void> {
             required: ["itemId"],
           },
           annotations: { readOnlyHint: true },
-          execute(input) {
+          async execute(input) {
             const { itemId, maxDistanceKm = 10 } = input as MatchInput;
+            const trader = liveTrader();
+            if (trader) {
+              const { matches } = await pilotApi.getMatches(itemId);
+              return response(
+                `Found ${matches.length} compatible live ${matches.length === 1 ? "request" : "requests"}.`,
+                { source: "cloudflare-d1", matches },
+              );
+            }
             const matches = marketStore.findMatches({ itemId, maxDistanceKm });
             return response(
-              `Found ${matches.length} verified demand ${matches.length === 1 ? "match" : "matches"} within ${maxDistanceKm} km.`,
-              { matches },
+              `Found ${matches.length} illustrative demand ${matches.length === 1 ? "match" : "matches"} within ${maxDistanceKm} km.`,
+              { source: "illustrative-demo", matches },
             );
           },
         },
@@ -166,9 +215,33 @@ export async function registerMarketTools(): Promise<() => void> {
             },
             required: ["itemId", "quantity", "pricePerUnit"],
           },
-          execute(input) {
+          async execute(input) {
+            const values = input as DraftInput;
+            const trader = liveTrader();
+            if (trader) {
+              if (!values.matchId) throw new Error("A live demand match ID is required.");
+              const { matches } = await pilotApi.getMatches(values.itemId);
+              const match = matches.find((entry) => entry.demandId === values.matchId);
+              if (!match) throw new Error("The live demand match is no longer available.");
+              await pilotApi.createOffer({
+                inventoryId: values.itemId,
+                demandId: values.matchId,
+                actorId: trader.id,
+                quantity: values.quantity,
+                pricePerUnit: values.pricePerUnit,
+                pickupWindow: `By ${new Date(match.neededBy).toLocaleString("en-NG")}`,
+                note: values.note,
+                createdBy: "agent",
+              });
+              window.dispatchEvent(new Event("trader-network:changed"));
+              document.getElementById("pilot")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              return response(
+                "Live offer draft prepared in D1. Ask the trader to review and send it from the visible pilot workspace; nothing has been sent yet.",
+                { source: "cloudflare-d1", requiresHumanApproval: true },
+              );
+            }
             const draft = marketStore.createDraft({
-              ...(input as DraftInput),
+              ...values,
               createdBy: "agent",
             });
             return response(

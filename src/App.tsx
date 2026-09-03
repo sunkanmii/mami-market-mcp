@@ -9,6 +9,7 @@ import { ActivityStrip } from "./components/ActivityStrip";
 import { AssistPanel } from "./components/AssistPanel";
 import { Brand } from "./components/Brand";
 import { InventoryWorkspace } from "./components/InventoryWorkspace";
+import { PilotNetwork } from "./components/PilotNetwork";
 import { marketStore, useMarketState } from "./lib/store";
 import { registerMarketTools } from "./lib/webmcp";
 
@@ -81,9 +82,10 @@ function App() {
       <header className="topbar">
         <div className="brand-group">
           <Brand />
-          <span className="demo-data">Illustrative data</span>
+          <span className="demo-data">Live pilot + demo</span>
         </div>
         <nav aria-label="Primary navigation">
+          <a href="#pilot">Live pilot</a>
           <a href="#workspace">Workspace</a>
           <a href="#activity">Activity</a>
         </nav>
@@ -108,8 +110,8 @@ function App() {
             Trader Network helps informal market traders find nearby demand and
             prepare safe, reviewable offers before perishable goods lose value.
           </p>
-          <a className="hero-action" href="#workspace">
-            Review today’s stock
+          <a className="hero-action" href="#pilot">
+            Open the live pilot
             <ArrowDownIcon weight="bold" aria-hidden="true" />
           </a>
         </div>
@@ -130,6 +132,8 @@ function App() {
           </div>
         </div>
       </section>
+
+      <PilotNetwork />
 
       <div className="workspace" id="workspace">
         <InventoryWorkspace

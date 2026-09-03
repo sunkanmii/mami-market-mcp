@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "trader-network",
+  "compatibility_date": "2026-09-03",
+  "pages_build_output_dir": "./dist",
+  "d1_databases": [
+    {
+      "binding": "trader_network_db",
+      "database_name": "trader-network-db",
+      "database_id": "91bb70a6-6ba4-47c7-96de-96d876f94bd1",
+      "migrations_dir": "./migrations"
+    }
+  ]
+}

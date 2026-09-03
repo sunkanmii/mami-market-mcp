@@ -22,7 +22,7 @@ export interface BuyerMatch {
   maxPricePerUnit: number;
   distanceKm: number;
   pickupWindow: string;
-  trustScore: number;
+  matchScore: number;
 }
 
 export interface OfferDraft {

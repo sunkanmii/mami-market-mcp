@@ -102,7 +102,7 @@ export function InventoryWorkspace({
           <h3>{selectedItem.name}</h3>
           <p>
             {selectedItem.soldToday} {selectedItem.unit} sold today. The agent can
-            inspect this same inventory record and find verified demand without
+            inspect this same inventory record and find illustrative demand without
             scraping the screen.
           </p>
         </div>

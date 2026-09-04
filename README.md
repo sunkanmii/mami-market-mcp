@@ -127,11 +127,12 @@ The production deployment is hosted on Cloudflare Pages. Use the live URL in a W
 
 ## Hackathon scope
 
-This project was created during the OpenAI WebMCP Challenge submission period. It is intentionally limited to one measurable workflow: connecting time-sensitive surplus to compatible nearby demand. It is a facilitated, access-code-protected pilot rather than an open marketplace. Forecasting, payments, hosted identity-photo verification, and automated external messaging remain outside scope; accepted participants coordinate by phone or WhatsApp and verify the person and goods at pickup.
+This project was created during the OpenAI WebMCP Challenge submission period. Therefore, it is intentionally limited to one measurable workflow: connecting time-sensitive surplus items/about to spoil items to compatible nearby demand. It is a facilitated, access-code-protected pilot rather than an open marketplace. Forecasting, payments, hosted identity-photo verification, and automated external messaging remain outside scope; accepted participants coordinate by phone or WhatsApp and verify the person and goods at pickup.
+
+Note: In case
 
 ## Assets and licenses
 
 - Source code: [MIT](LICENSE)
 - Product photography: remote images from Unsplash, subject to the [Unsplash License](https://unsplash.com/license)
 - Outfit typeface: served by Google Fonts under its listed open-font license
-- Phosphor Icons: MIT License

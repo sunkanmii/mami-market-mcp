@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { buyerAgent, purchaseUnits, useBuyerAgent, validatePurchaseRequest, type PurchaseDraft, type PurchaseRequest } from "../lib/buyer-agent";
 import { pilotApi, type PilotParticipant } from "../lib/pilot-api";
 import { naira } from "../lib/format";
+import { marketStore } from "../lib/store";
 
 type RunMutation = (action: () => Promise<unknown>, message: string) => Promise<boolean>;
 export function BuyerAgentPanel({ profile, busy, runMutation }: { profile: PilotParticipant; busy: boolean; runMutation: RunMutation }) {
@@ -35,7 +36,7 @@ export function BuyerAgentPanel({ profile, busy, runMutation }: { profile: Pilot
   );
 }
 
-function RequestDraftForm({ draft, busy, runMutation }: { draft: PurchaseDraft; busy: boolean; runMutation: RunMutation }) {
+export function RequestDraftForm({ draft, busy = false, runMutation, sandbox = false }: { draft: PurchaseDraft; busy?: boolean; runMutation?: RunMutation; sandbox?: boolean }) {
   const [error, setError] = useState("");
   const localDate = new Date(draft.neededBy);
   const dateValue = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
@@ -45,13 +46,15 @@ function RequestDraftForm({ draft, busy, runMutation }: { draft: PurchaseDraft; 
     const form = new FormData(event.currentTarget);
     const field = (key: string) => String(form.get(key) ?? "").trim();
     try {
-      if (pilotApi.loadProfile()?.id !== draft.buyerId) throw new Error("Participant changed. Prepare a new draft for this buyer.");
+      if (!sandbox && pilotApi.loadProfile()?.id !== draft.buyerId) throw new Error("Participant changed. Prepare a new draft for this buyer.");
       const request = validatePurchaseRequest({
         itemName: field("itemName"), category: field("category"), requestedQuantity: Number(field("requestedQuantity")),
         unit: field("unit"), maximumPricePerUnit: field("maximumPricePerUnit") === "" ? null : Number(field("maximumPricePerUnit")),
         neededBy: new Date(field("neededBy")).toISOString(), deliveryArea: field("deliveryArea"),
         fulfilmentPreference: field("fulfilmentPreference") as PurchaseRequest["fulfilmentPreference"],
       });
+      if (sandbox) { marketStore.publishDemoRequest(request); return; }
+      if (!runMutation) throw new Error("Live publishing is unavailable.");
       const completed = await runMutation(() => pilotApi.createDemand({ ...request, buyerId: draft.buyerId }), "You approved and published the request. Traders can now respond.");
       if (completed) buyerAgent.discard(draft.id);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Check your request details."); }
@@ -59,7 +62,7 @@ function RequestDraftForm({ draft, busy, runMutation }: { draft: PurchaseDraft; 
   return (
     <form className="pilot-form buyer-request-draft" autoComplete="off" onSubmit={(event) => void publish(event)} aria-labelledby="request-draft-title">
       <div className="form-heading"><span>Unpublished · {draft.createdBy === "buyer" ? "selected from market" : "agent prepared"}</span><h3 id="request-draft-title">Review your request</h3></div>
-      <p role="status">Edit any detail below. Nothing is sent until you approve. This draft is lost if you reload.</p>
+      <p role="status">{sandbox ? "Fictional sandbox request. Approval changes this rehearsal only, never the live database. Use a sample product and its exact unit." : "Edit any detail below. Nothing is sent until you approve."} This draft is lost if you reload.</p>
       <div className="form-grid-two">
         <label>Product<input name="itemName" required maxLength={80} defaultValue={draft.itemName} /></label>
         <label>Category<input name="category" maxLength={40} defaultValue={draft.category ?? ""} /></label>
@@ -72,8 +75,8 @@ function RequestDraftForm({ draft, busy, runMutation }: { draft: PurchaseDraft; 
       </div>
       {error ? <p className="inline-error" role="alert">{error}</p> : null}
       <div className="offer-actions">
-        <button type="submit" disabled={busy}>{busy ? "Publishing…" : "Approve and publish request"}</button>
-        <button type="button" className="quiet-button" disabled={busy} onClick={() => buyerAgent.discard(draft.id)}>Discard request draft</button>
+        <button type="submit" disabled={busy}>{busy ? "Publishing…" : sandbox ? "Approve demo request" : "Approve and publish request"}</button>
+        <button type="button" className="quiet-button" disabled={busy} onClick={() => sandbox ? marketStore.discardDemoRequest() : buyerAgent.discard(draft.id)}>Discard request draft</button>
       </div>
     </form>
   );

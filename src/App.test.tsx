@@ -8,6 +8,7 @@ describe("Trader Network human-in-the-loop flow", () => {
     marketStore.reset();
     window.localStorage.clear();
     window.sessionStorage.clear();
+    window.history.replaceState(null, "", "/");
   });
 
   afterEach(() => {
@@ -17,6 +18,7 @@ describe("Trader Network human-in-the-loop flow", () => {
 
   it("prepares an offer but waits for the trader before publishing", () => {
     render(<App />);
+    fireEvent.click(screen.getByRole("link", { name: "Agent sandbox" }));
 
     fireEvent.click(screen.getByRole("button", { name: /preview that assist/i }));
 
@@ -27,6 +29,7 @@ describe("Trader Network human-in-the-loop flow", () => {
 
   it("publishes only after an explicit approval action", () => {
     render(<App />);
+    fireEvent.click(screen.getByRole("link", { name: "Agent sandbox" }));
     fireEvent.click(screen.getByRole("button", { name: /preview that assist/i }));
     fireEvent.click(screen.getByRole("button", { name: /approve and send/i }));
     expect(marketStore.getSnapshot().inventory[0].reserved).toBe(0);
@@ -38,6 +41,13 @@ describe("Trader Network human-in-the-loop flow", () => {
     expect(marketStore.getSnapshot().inventory[0].quantity).toBe(12);
     expect(marketStore.getSnapshot().inventory[0].reserved).toBe(0);
     expect(screen.getByText(/No real sale occurred/i)).toBeInTheDocument();
+  });
+
+  it("hides the sandbox banner until explicitly opened from navigation", () => {
+    render(<App />);
+    expect(document.getElementById("demo-sandbox")).not.toBeVisible();
+    fireEvent.click(screen.getByRole("link", { name: "Agent sandbox" }));
+    expect(document.getElementById("demo-sandbox")).toBeVisible();
   });
 
   it("puts a newly sent offer at the top of the buyer workspace", async () => {

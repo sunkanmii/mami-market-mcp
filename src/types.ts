@@ -1,3 +1,5 @@
+import type { PurchaseDraft, PurchaseRequest } from "./lib/buyer-agent";
+
 export type InventoryCategory = "Produce" | "Seafood" | "Dry goods";
 
 export interface InventoryItem {
@@ -14,6 +16,7 @@ export interface InventoryItem {
 }
 
 export interface BuyerMatch {
+  request?: PurchaseRequest;
   id: string;
   buyerName: string;
   market: string;
@@ -45,6 +48,8 @@ export interface ActivityItem {
 }
 
 export interface MarketState {
+  sandboxBuyerDraft?: PurchaseDraft | null;
+  sandboxSearch?: { query: PurchaseRequest; items: (InventoryItem & { availableQuantity: number })[] } | null;
   sandboxRole: "seller" | "buyer";
   inventory: InventoryItem[];
   matches: BuyerMatch[];

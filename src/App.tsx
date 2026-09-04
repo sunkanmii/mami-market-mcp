@@ -19,7 +19,7 @@ import { registerMarketTools } from "./lib/webmcp";
 function App() {
   const state = useMarketState();
   const mainRef = useRef<HTMLElement>(null);
-  const [demoOpen, setDemoOpen] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(() => window.location.hash === "#demo-sandbox");
 
   useEffect(() => {
     let disposed = false;
@@ -148,6 +148,7 @@ function App() {
       <details
         className="demo-sandbox"
         id="demo-sandbox"
+        hidden={!demoOpen}
         open={demoOpen}
         onToggle={(event) => setDemoOpen(event.currentTarget.open)}
       >

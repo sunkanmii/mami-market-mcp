@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { naira } from "../lib/format";
+import { isRehearsal } from "../lib/pilot-evidence";
 import { BuyerAgentPanel } from "./BuyerAgentPanel";
 import { MarketBoard } from "./MarketBoard";
 import { availability } from "../lib/market-availability";
@@ -61,6 +62,8 @@ function verificationLabel(status: string): string {
 export function PilotNetwork() {
   const [snapshot, setSnapshot] = useState<PilotSnapshot | null>(null);
   const [profile, setProfile] = useState<PilotParticipant | null>(() => pilotApi.loadProfile());
+  const [savedProfiles, setSavedProfiles] = useState(() => pilotApi.savedProfiles());
+  const [creatingProfile, setCreatingProfile] = useState(false);
   const [hasAccessCode, setHasAccessCode] = useState(() => pilotApi.hasCode());
   const [joinRole, setJoinRole] = useState<JoinRole>("trader");
   const [loading, setLoading] = useState(true);
@@ -86,6 +89,19 @@ export function PilotNetwork() {
     window.addEventListener("trader-network:changed", handleNetworkChange);
     return () => window.removeEventListener("trader-network:changed", handleNetworkChange);
   }, [refresh]);
+
+  useEffect(() => {
+    const syncProfile = (event: StorageEvent) => {
+      if (event.key !== null && !["trader-network-pilot-profile-v2", "trader-network-participant-session-v2", "trader-network-saved-sessions-v1"].includes(event.key)) return;
+      buyerAgent.reset();
+      setProfile(pilotApi.loadProfile());
+      setSavedProfiles(pilotApi.savedProfiles());
+      setHasAccessCode(pilotApi.hasCode());
+      setCreatingProfile(false);
+    };
+    window.addEventListener("storage", syncProfile);
+    return () => window.removeEventListener("storage", syncProfile);
+  }, []);
 
   useEffect(() => {
     if (!profile || !hasAccessCode) return;
@@ -138,6 +154,8 @@ export function PilotNetwork() {
       });
       pilotApi.saveProfile(result.participant, result.sessionToken);
       setProfile(result.participant);
+      setSavedProfiles(pilotApi.savedProfiles());
+      setCreatingProfile(false);
       setHasAccessCode(true);
     }, "Your pilot profile is ready on this device.");
     if (!completed) pilotApi.clearCode();
@@ -145,10 +163,28 @@ export function PilotNetwork() {
 
   const leavePilot = () => {
     buyerAgent.reset();
-    pilotApi.clearProfile();
+    pilotApi.pauseProfile();
     setProfile(null);
-    setHasAccessCode(false);
-    setNotice("This device is no longer linked to a pilot participant.");
+    setSavedProfiles(pilotApi.savedProfiles());
+    setCreatingProfile(false);
+    setError("");
+    setNotice("Your profile is saved. Choose a participant to continue; published stock, requests and offers stay in the network. Unpublished form inputs are not saved when switching.");
+    window.location.hash = "pilot";
+  };
+
+  const selectParticipant = (id: string) => {
+    try {
+      buyerAgent.reset();
+      const next = pilotApi.switchProfile(id);
+      setProfile(next);
+      setHasAccessCode(pilotApi.hasCode());
+      setCreatingProfile(false);
+      setError("");
+      setNotice(`Welcome back, ${next.displayName}. Your existing workspace is selected.`);
+      void refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not open the saved profile.");
+    }
   };
 
   const metrics = useMemo(() => {
@@ -158,8 +194,8 @@ export function PilotNetwork() {
     const demands = snapshot?.demands.filter((item) =>
       availability(item, snapshot.offers).available > 0,
     ).length ?? 0;
-    const completed = snapshot?.offers.filter((offer) => offer.status === "completed").length ?? 0;
-    return { inventory, demands, completed };
+    const connections = snapshot?.offers.filter((offer) => ["accepted", "completed"].includes(offer.status)).length ?? 0;
+    return { inventory, demands, connections };
   }, [snapshot]);
 
   return (
@@ -178,8 +214,9 @@ export function PilotNetwork() {
       <div className="pilot-metrics" aria-label="Live pilot totals">
         <div><strong>{metrics.inventory}</strong><span>available stock lines</span></div>
         <div><strong>{metrics.demands}</strong><span>open buyer requests</span></div>
-        <div><strong>{metrics.completed}</strong><span>completed exchanges</span></div>
+        <div><strong>{metrics.connections}</strong><span>accepted connections · includes tests</span></div>
       </div>
+      <p className="form-note">A connection opens the contact handoff; payment and pickup happen offline. Pilot totals include assisted rehearsals, not verified sales.</p>
 
       {error ? (
         <div className="pilot-feedback" data-kind="error" role="alert">
@@ -194,7 +231,31 @@ export function PilotNetwork() {
         </div>
       ) : null}
 
-      {!profile ? (
+      {!profile && savedProfiles.length > 0 ? (
+        <div className="saved-participants" aria-labelledby="saved-participants-title">
+          <h3 id="saved-participants-title">Continue with a saved participant</h3>
+          <p>These profiles are saved in this browser, not across devices. Anyone using this browser can reopen them—use a trusted device.</p>
+          <ul>
+            {savedProfiles.map((saved) => (
+              <li key={saved.id}>
+                <div>
+                  <strong>{saved.businessName || saved.displayName}</strong>
+                  <span>{saved.role === "trader" ? "Seller" : saved.role === "buyer" ? "Buyer" : "Facilitator"} · {saved.area} · Profile {saved.id.slice(-8)}</span>
+                </div>
+                <button className="secondary-button" type="button" onClick={() => selectParticipant(saved.id)}>
+                  Continue as {saved.role === "trader" ? "seller" : saved.role}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button className="text-button" type="button" aria-expanded={creatingProfile} onClick={() => setCreatingProfile(!creatingProfile)}>
+            {creatingProfile ? "Cancel new profile" : "Add a different participant or your other trading role"}
+          </button>
+          <p>Already registered elsewhere? Do not register again: return to that browser. Previously cleared profiles need account recovery, which is not available yet.</p>
+        </div>
+      ) : null}
+
+      {!profile && (savedProfiles.length === 0 || creatingProfile) ? (
         <div className="pilot-join-layout">
           <div className="role-explainer">
             <span>Choose this device’s role</span>
@@ -298,7 +359,7 @@ export function PilotNetwork() {
             </button>
           </form>
         </div>
-      ) : !hasAccessCode ? (
+      ) : !profile ? null : !hasAccessCode ? (
         <form
           className="pilot-form reconnect-form"
           onSubmit={(event) => {
@@ -337,7 +398,7 @@ export function PilotNetwork() {
               <strong>{profile.businessName || profile.displayName}</strong>
               <span><MapPinIcon weight="fill" aria-hidden="true" />{profile.area}</span>
             </span>
-            <button type="button" onClick={leavePilot}>
+            <button type="button" onClick={leavePilot} disabled={busy}>
               <SignOutIcon weight="bold" aria-hidden="true" />
               Change participant
             </button>
@@ -345,6 +406,7 @@ export function PilotNetwork() {
 
           {profile.role === "trader" ? (
             <TraderPilot
+              key={profile.id}
               profile={profile}
               snapshot={snapshot}
               busy={busy}
@@ -352,6 +414,7 @@ export function PilotNetwork() {
             />
           ) : (
             <BuyerPilot
+              key={profile.id}
               profile={profile}
               snapshot={snapshot}
               busy={busy}
@@ -591,7 +654,7 @@ function OfferList({ offers, profile, busy, runMutation }: {
       () => pilotApi.updateOfferStatus(offer.id, status, profile.id),
       status === "sent" ? "The buyer can now review this offer on their device."
         : status === "accepted" ? "Offer accepted. Private contact and meetup details are now available to both people."
-          : status === "completed" ? "Exchange completed and counted in the pilot results."
+          : status === "completed" ? "Pickup marked complete. This is participant-reported, not independently verified impact."
             : `Offer ${status}.`,
     );
 
@@ -606,7 +669,7 @@ function OfferList({ offers, profile, busy, runMutation }: {
       </div>
       {offers.length ? offers.map((offer) => (
         <article className={`live-offer${profile.role === "buyer" && offer.status === "sent" ? " is-waiting" : ""}`} key={offer.id}>
-          <div className="offer-status" data-status={offer.status}>{offer.status === "completed" ? "Closed · pickup completed" : offer.status === "sent" ? "Sent · awaiting buyer" : offer.status === "accepted" ? "Accepted · awaiting pickup" : offer.status}</div>
+          <div className="offer-status" data-status={offer.status}>{isRehearsal(offer.id) ? "Recorded-stock rehearsal · no physical pickup claimed" : offer.status === "completed" ? "Closed · pickup reported" : offer.status === "sent" ? "Sent · awaiting buyer" : offer.status === "accepted" ? "Connected · arrange pickup offline" : offer.status}</div>
           <h4>{offer.quantity} {offer.unit} of {offer.itemName}</h4>
           <p>{naira.format(offer.pricePerUnit)} each · {naira.format(offer.quantity * offer.pricePerUnit)} total</p>
           <dl><div><dt>Trader</dt><dd>{offer.traderName}</dd></div><div><dt>Buyer</dt><dd>{offer.buyerName}</dd></div><div><dt>Pickup</dt><dd>{offer.pickupWindow}</dd></div></dl>

@@ -29,7 +29,7 @@ The browser agent works according to the current device's role. Traders can insp
 | `review_incoming_offers` | Explain offers sent to the current buyer, excluding unsent drafts | None |
 | `draft_purchase_request` | Prepare an editable buyer request | In-memory draft only; buyer must publish |
 
-The first four tools are seller-only (or illustrative when no profile exists). Buyer tools reject other roles. `get_trade_context` is available in either role. These result filters do not make public network records confidential; phone and meetup details use a separate authenticated post-acceptance API.
+The first four tools are seller-only; the buyer tools require the buyer role. Without a registered profile, both roles work in **Agent sandbox** using its **Demo seller / Demo buyer** controls. Every sandbox result identifies `source: illustrative-demo`. A registered profile always takes precedence and never silently falls back to demo records. `get_trade_context` reports role and source before acting. These result filters do not make public network records confidential; phone and meetup details use a separate authenticated post-acceptance API.
 
 Tools are registered through `document.modelContext.registerTool()` in [`src/lib/webmcp.ts`](src/lib/webmcp.ts), with buyer definitions in [`src/lib/buyer-tools.ts`](src/lib/buyer-tools.ts). An `AbortController` unregisters them with the document lifecycle.
 
@@ -49,6 +49,22 @@ For the anonymous illustrative sandbox, the expected tool sequence is:
 6. Switch to **Demo buyer** to accept or decline the same offer. Acceptance reserves illustrative stock and shows a placeholder contact handoff. **Simulate completed pickup** updates only sandbox stock and demand, never live pilot totals.
 7. In the live pilot, the matched buyer accepts or declines on a separate device and either participant can record completed pickup.
 
+### Judge access: test both roles without credentials
+
+Open https://trader-network.pages.dev/#demo-sandbox in a browser profile with no pilot registration. Do not share a real participant session, phone number, or pilot code. Select **Demo seller**, then run the seller sequence above. Before the human sends, select **Demo buyer** and ask `review_incoming_offers`: the unsent offer must not appear. After the human sends, the same tool returns the offer and total. Human-only buttons accept/decline and simulate pickup.
+
+With **Demo buyer** selected, ask:
+
+> Check get_trade_context and use only illustrative-demo data. Read my requests, find stock for my open request, and explain incoming offers. Do not accept or publish anything.
+
+The agent can also call `draft_purchase_request` with the sample product, exact unit, quantity, budget, a future ISO deadline, collection area and fulfilment preference. An editable form appears; **Approve demo request** adds fictional demand for the demo seller, while **Discard request draft** publishes nothing. This bounded rehearsal supports the four sample catalog products; an unknown product cannot be published into it. Reset removes sandbox changes only. Drafts and search results are cleared on reload. No sandbox tool calls a live API.
+
+Ordinary browsers can use the forms and role buttons; invoking agent tools requires a WebMCP-capable host. There is no embedded chatbot or autonomous payment agent.
+
+### What this pilot demonstrates
+
+The platform's intended outcome is a buyer–seller connection and contact handoff, with payment and pickup arranged offline. Accepted connections and reported pickups are different events. The organiser tested the workflow as the buyer using a real seller's recorded watermelon inventory. That recorded completed entry is explicitly labelled a **recorded-stock rehearsal**; no physical sale, revenue, prevented waste, or independent buyer adoption is claimed. The original D1 history is preserved. A future pickup may be reported by a participant, but the app does not independently verify it.
+
 ## Browse and trade without an agent
 
 - Buyers see **Browse stock for sale**. Select a listing to prepare an editable request, then explicitly publish it. This is an open request to compatible traders, not a direct purchase or reservation from the selected seller.
@@ -65,7 +81,7 @@ Payment and delivery remain outside the platform. Participants consent to storin
 
 ## Run locally
 
-Requirements: Node.js 20 or later.
+Requirements: Node.js 24 or later (including the SQLite API test runner).
 
 ```bash
 npm install
@@ -89,11 +105,12 @@ npx wrangler pages dev dist --port 8788
 
 ```bash
 npm test
+npm run test:api
 npm run build
 npm run typecheck:functions
 ```
 
-The test suite covers role-aware WebMCP registration, buyer request/offer isolation, stock matching, reservations, validation, editable drafts, discard and explicit human approval.
+The test suite covers role-aware WebMCP registration, anonymous buyer/seller isolation, stock matching, reservations, validation, editable drafts, discard and explicit human approval. `test:api` executes the real API queries against in-memory SQLite, including expired records, competing stock/demand acceptances, repeated completion and cancellation races. It does not access D1. Status changes use transactional conditional writes; a failed status/capacity check cannot produce downstream stock decrements or a success event.
 
 The production deployment is hosted on Cloudflare Pages. Use the live URL in a WebMCP-enabled browser to exercise the registered tools alongside the participant interface.
 

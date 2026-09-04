@@ -1,6 +1,8 @@
 import { marketStore } from "../lib/store";
 import { naira } from "../lib/format";
 import type { MarketState } from "../types";
+import { RequestDraftForm } from "./BuyerAgentPanel";
+import { pilotApi } from "../lib/pilot-api";
 
 export function DemoRoleControls({ state }: { state: MarketState }) {
   const status = state.draft?.status;
@@ -11,23 +13,31 @@ export function DemoRoleControls({ state }: { state: MarketState }) {
       <button type="button" aria-pressed={state.sandboxRole === "seller"} onClick={() => marketStore.setSandboxRole("seller")}>Demo seller</button>
       <button type="button" aria-pressed={state.sandboxRole === "buyer"} onClick={() => marketStore.setSandboxRole("buyer")}>Demo buyer</button>
     </div>
+    <p>{pilotApi.loadProfile() ? "Your agent still uses your registered live profile. To test anonymous sandbox tools, open this sandbox URL in a fresh browser profile with no pilot registration. No real credentials should be shared." : `Agent tools now use the fictional ${state.sandboxRole} role. No login, pilot code or real participant credentials are needed.`}</p>
+    <p>Ask in your browser’s agent chat: {state.sandboxRole === "buyer" ? "“Check get_trade_context, read my requests, find stock and review my incoming offers. Use only illustrative-demo data.”" : "“Check get_trade_context, find urgent stock and compatible demand, then prepare an offer for my review. Use only illustrative-demo data.”"}</p>
     <ol className="demo-trade-steps" aria-label="Illustrative trade progress">{["Seller prepares", "Buyer reviews", "Arrange pickup", "Complete"].map((label, index) => <li key={label} aria-current={index === step ? "step" : undefined}>{index + 1}. {label}</li>)}</ol>
   </div>;
 }
 
 export function DemoBuyerWorkspace({ state }: { state: MarketState }) {
   const match = state.matches.find((entry) => entry.id === state.draft?.matchId) ?? state.matches.find((entry) => entry.itemId === state.selectedItemId);
-  const item = state.inventory.find((entry) => entry.id === (match?.itemId ?? state.selectedItemId))!;
   return <>
     <section className="demo-buyer-request" aria-labelledby="demo-buyer-title">
       <span className="eyebrow">Buyer side · fictional participant</span>
       <h2 id="demo-buyer-title">{match?.buyerName ?? "Sample buyer"}</h2>
       <p>This is the buyer’s view of the same illustrative trade—not a second real account.</p>
-      <h3>Your sample request</h3>
-      {match ? <><p>{match.requestedQuantity} {item.unit} of {item.name} still needed.</p><p>Budget: {naira.format(match.maxPricePerUnit)} per unit</p><p>Collection: {match.pickupWindow} · {match.market}</p></> : <p>No sample request for this item. Choose Roma tomatoes on the seller side to rehearse the full exchange.</p>}
+      <h3>Your sample requests</h3>
+      {match ? marketStore.demoRequests().map((request) => <article key={request.id} className="buyer-stock-result"><h4>{request.itemName}</h4><p>{request.requestedQuantity} {request.unit} still needed · {request.status}</p><p>Budget: {request.maximumPricePerUnit === null ? "Open" : `${naira.format(request.maximumPricePerUnit)} per unit`}</p><p>Collection area: {request.deliveryArea}</p></article>) : <p>No sample request for this item. Choose Roma tomatoes on the seller side to rehearse the full exchange.</p>}
       <button className="compact-button" type="button" onClick={() => marketStore.setSandboxRole("seller")}>Go to demo seller</button>
+      <h3>Try the buyer’s agent tools</h3>
+      <p>Ask your browser agent to read your requests, find stock, explain sent offers or draft a request. Drafting never publishes or reserves goods.</p>
+      {state.sandboxBuyerDraft ? <RequestDraftForm key={state.sandboxBuyerDraft.id} draft={state.sandboxBuyerDraft} sandbox /> : null}
+      {state.sandboxSearch ? <section className="buyer-stock-results" aria-label="Illustrative stock search results" aria-live="polite"><h3>Sample stock for {state.sandboxSearch.query.itemName}</h3>
+        {state.sandboxSearch.items.length ? state.sandboxSearch.items.map((stock) => <article className="buyer-stock-result" key={stock.id}><h4>{stock.name}</h4><p>{stock.availableQuantity} {stock.unit} available · {naira.format(stock.pricePerUnit)} per unit</p>{state.sandboxSearch!.query.maximumPricePerUnit !== null && state.sandboxSearch!.query.maximumPricePerUnit! < stock.pricePerUnit ? <p>Above your budget; a lower price is not agreed.</p> : null}</article>) : <p>No matching sample stock. Check the exact product name and unit.</p>}
+        <p>Fictional listings. Nothing reserved; pickup and delivery are not promised.</p>
+      </section> : null}
     </section>
-    <aside className="assist-panel" aria-labelledby="demo-inbox-title">
+    <aside className="assist-panel demo-buyer-inbox" aria-labelledby="demo-inbox-title">
       <h2 id="demo-inbox-title">Buyer’s offer inbox</h2>
       {!state.draft || state.draft.status === "draft" ? <div className="demo-offer-progress"><h3>No offer received yet</h3><p>The seller’s unsent draft stays on the seller side. Switch to Demo seller, prepare the offer and select Approve and send.</p><button className="secondary-button" type="button" onClick={() => marketStore.setSandboxRole("seller")}>Go to seller to send an offer</button></div> : <DemoOfferStatus state={state} view="buyer" />}
     </aside>

@@ -36,6 +36,7 @@ function openIllustrativeWorkspace(): void {
 
 function liveTrader() {
   const profile = pilotApi.loadProfile();
+  if (!profile && marketStore.getSnapshot().sandboxRole !== "seller") throw new Error("Seller-only tool. Choose Demo seller in Agent sandbox first. No live profile is required.");
   if (profile && profile.role !== "trader") throw new Error("Seller-only tool. This device is registered as a buyer; use get_my_requests, find_stock_for_request, review_incoming_offers, or draft_purchase_request. No illustrative data was used.");
   return profile?.role === "trader" ? profile : null;
 }
@@ -83,11 +84,13 @@ export async function registerMarketTools(): Promise<() => void> {
               const items = snapshot.inventory
                 .filter((item) => item.traderId === trader.id)
                 .filter((item) => ["available", "partially_matched"].includes(item.status))
+                .filter((item) => !item.availableUntil || Date.parse(item.availableUntil) > Date.now())
                 .filter((item) => {
                   const hours = liveExpiryHours(item);
                   return !urgentOnly || (hours !== null && hours <= 48);
                 })
-                .map((item) => ({ ...item, expiresInHours: liveExpiryHours(item) }));
+                .map((item) => ({ ...item, expiresInHours: liveExpiryHours(item), availableQuantity: Math.max(0, item.quantity - snapshot.offers.filter((offer) => offer.inventoryId === item.id && offer.status === "accepted").reduce((sum, offer) => sum + offer.quantity, 0)) }))
+                .filter((item) => item.availableQuantity > 0);
               return response(
                 `Found ${items.length} live inventory ${items.length === 1 ? "item" : "items"} for ${trader.displayName}.`,
                 { source: "cloudflare-d1", items },
@@ -137,6 +140,7 @@ export async function registerMarketTools(): Promise<() => void> {
             marketStore.selectItem(itemId, "agent");
             openIllustrativeWorkspace();
             return response("The item is now visible in the shared workspace.", {
+              source: "illustrative-demo",
               selectedItemId: itemId,
             });
           },
@@ -182,7 +186,7 @@ export async function registerMarketTools(): Promise<() => void> {
             const matches = marketStore.findMatches({ itemId, maxDistanceKm });
             return response(
               `Found ${matches.length} illustrative demand ${matches.length === 1 ? "match" : "matches"} within ${maxDistanceKm} km.`,
-              { source: "illustrative-demo", matches },
+              { source: "illustrative-demo", matches: matches.map((match) => match.request ? { ...match, distanceKm: null, matchScore: null, maxPricePerUnit: match.request.maximumPricePerUnit } : match) },
             );
           },
         },
@@ -256,7 +260,7 @@ export async function registerMarketTools(): Promise<() => void> {
             openIllustrativeWorkspace();
             return response(
               "Draft prepared. Ask the trader to review and approve it in the visible workspace; nothing has been published yet.",
-              { draft, requiresHumanApproval: true },
+              { source: "illustrative-demo", draft, requiresHumanApproval: true },
             );
           },
         },

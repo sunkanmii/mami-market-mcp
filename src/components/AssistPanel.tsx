@@ -140,12 +140,12 @@ export function AssistPanel({ state }: AssistPanelProps) {
                           <strong>{match.buyerName}</strong>
                           <small>
                             <MapPinIcon weight="fill" aria-hidden="true" />
-                            {match.distanceKm} km · {match.market}
+                            {match.request ? "Demo area" : `${match.distanceKm} km`} · {match.market}
                           </small>
                         </span>
                         <span className="fit-score">
                           <SealCheckIcon weight="fill" aria-hidden="true" />
-                          {match.matchScore}% fit
+                          {match.request ? "New request" : `${match.matchScore}% fit`}
                         </span>
                       </button>
                       {isActive ? (
@@ -158,7 +158,7 @@ export function AssistPanel({ state }: AssistPanelProps) {
                           </div>
                           <div>
                             <span>Up to</span>
-                            <strong>{naira.format(match.maxPricePerUnit)}</strong>
+                            <strong>{match.request?.maximumPricePerUnit === null ? "Open budget" : naira.format(match.maxPricePerUnit)}</strong>
                           </div>
                           <div>
                             <span>Pickup</span>

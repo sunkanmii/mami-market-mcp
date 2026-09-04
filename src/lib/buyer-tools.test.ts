@@ -3,6 +3,7 @@ import { buyerAgent, matchStock, validatePurchaseRequest, type PurchaseRequest }
 import { buyerTools } from "./buyer-tools";
 import { pilotApi, type PilotParticipant, type PilotSnapshot, type PilotInventory, type PilotOffer, type PilotMatch } from "./pilot-api";
 import { registerMarketTools } from "./webmcp";
+import { marketStore } from "./store";
 
 const profile = { id: "buyer-one", role: "buyer", displayName: "Buyer", area: "Ketu" } as PilotParticipant;
 const query = (): PurchaseRequest => ({ itemName: "Watermelon", unit: "packs", requestedQuantity: 3, maximumPricePerUnit: 1000, neededBy: new Date(Date.now() + 86400000).toISOString(), deliveryArea: "Ketu", fulfilmentPreference: "pickup" });
@@ -42,11 +43,12 @@ describe("buyer agent isolation and approval", () => {
     expect(buyerAgent.getState().search?.items).toHaveLength(1);
     await expect(execute("find_stock_for_request", { demandId: "other-request" })).rejects.toThrow("does not belong");
   });
-  it("refuses buyer tools for traders and anonymous visitors", async () => {
+  it("refuses buyer tools for traders and anonymous seller mode", async () => {
+    marketStore.reset();
     for (const role of ["trader", null]) {
       if (role) pilotApi.saveProfile({ ...profile, role: "trader" }); else pilotApi.clearProfile();
       for (const name of ["get_my_requests", "find_stock_for_request", "review_incoming_offers", "draft_purchase_request"]) {
-        await expect(execute(name, { ...query() })).rejects.toThrow("live buyer profile");
+        await expect(execute(name, { ...query() })).rejects.toThrow(/live buyer profile|Demo buyer/);
       }
     }
   });
@@ -73,6 +75,50 @@ describe("buyer agent isolation and approval", () => {
   it("fails closed if the participant changes during a read", async () => {
     vi.mocked(pilotApi.getNetwork).mockImplementationOnce(async () => { pilotApi.saveProfile({ ...profile, id: "new-buyer" }); return snapshot(); });
     await expect(execute("get_my_requests")).rejects.toThrow("Participant changed");
+  });
+});
+describe("anonymous two-role rehearsal", () => {
+  beforeEach(() => { pilotApi.clearProfile(); marketStore.reset(); marketStore.setSandboxRole("buyer"); });
+  it("reads and searches fictional requests without accessing D1", async () => {
+    expect((await execute("get_trade_context")).structuredContent).toMatchObject({ role: "buyer", source: "illustrative-demo", participantId: null, hasPilotCode: false });
+    expect((await execute("get_my_requests")).structuredContent.requests).toHaveLength(1);
+    const search = await execute("find_stock_for_request", { demandId: "buyer-amaka" });
+    expect(search.structuredContent.items).toEqual([expect.objectContaining({ availableQuantity: 18, priceStatus: "negotiation_needed" })]);
+    expect(pilotApi.getNetwork).not.toHaveBeenCalled();
+    await expect(execute("find_stock_for_request", { demandId: "buyer-bisi" })).rejects.toThrow("does not belong");
+  });
+  it("keeps buyer approval local and exposes the approved request to the seller", async () => {
+    const write = vi.spyOn(pilotApi, "createDemand");
+    const request = { ...query(), itemName: "Roma tomatoes", unit: "crates", maximumPricePerUnit: 27500 };
+    await execute("draft_purchase_request", request);
+    expect(marketStore.demoRequests()).toHaveLength(1);
+    await expect(execute("draft_purchase_request", request)).rejects.toThrow("existing request draft");
+    const published = marketStore.publishDemoRequest(request);
+    marketStore.setSandboxRole("seller");
+    expect(marketStore.findMatches({ itemId: "tomatoes-roma" }).some((match) => match.id === published.id)).toBe(true);
+    expect(write).not.toHaveBeenCalled();
+    expect(pilotApi.getNetwork).not.toHaveBeenCalled();
+    expect(buyerAgent.getState().draft).toBeNull();
+    marketStore.reset();
+    expect(marketStore.getSnapshot().sandboxBuyerDraft).toBeUndefined();
+  });
+  it("hides unsent seller drafts and reviews a sent offer through completion", async () => {
+    marketStore.setSandboxRole("seller");
+    marketStore.createDraft({ itemId: "tomatoes-roma", matchId: "buyer-amaka", quantity: 6, pricePerUnit: 27500, createdBy: "agent" });
+    marketStore.setSandboxRole("buyer");
+    expect((await execute("review_incoming_offers")).structuredContent.offers).toEqual([]);
+    marketStore.setSandboxRole("seller"); marketStore.publishDraft(); marketStore.setSandboxRole("buyer");
+    expect((await execute("review_incoming_offers")).structuredContent.offers).toEqual([expect.objectContaining({ status: "sent", totalPrice: 165000, requiresHumanAcceptance: true })]);
+    marketStore.respondToDemoOffer("accepted");
+    marketStore.completeDemoOffer();
+    expect((await execute("review_incoming_offers")).structuredContent.offers).toEqual([expect.objectContaining({ status: "completed" })]);
+    expect(pilotApi.getNetwork).not.toHaveBeenCalled();
+  });
+  it("does not fall back to fictional data for a registered participant", async () => {
+    pilotApi.saveProfile(profile);
+    expect((await execute("get_trade_context")).structuredContent.source).toBe("cloudflare-d1");
+    await execute("get_my_requests");
+    expect(pilotApi.getNetwork).toHaveBeenCalledOnce();
   });
 });
 describe("honest stock matching", () => {

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { createInitialState } from "../data";
+import { validatePurchaseRequest, type PurchaseRequest } from "./buyer-agent";
 import type {
   ActivityItem,
   BuyerMatch,
@@ -37,7 +38,7 @@ function loadState(): MarketState {
     if (!Array.isArray(parsed.inventory) || !Array.isArray(parsed.matches)) {
       return createInitialState();
     }
-    return { ...parsed, webMcpStatus: "checking" };
+    return { ...parsed, sandboxBuyerDraft: null, sandboxSearch: null, webMcpStatus: "checking" };
   } catch {
     return createInitialState();
   }
@@ -90,6 +91,59 @@ class MarketStore {
     window.requestAnimationFrame(() => document.getElementById("sandbox-role-heading")?.scrollIntoView?.({ behavior: "auto", block: "start" }));
   }
 
+  demoBuyerMatch() {
+    return this.state.matches.find((entry) => entry.id === this.state.draft?.matchId)
+      ?? this.state.matches.find((entry) => entry.itemId === this.state.selectedItemId);
+  }
+
+  demoRequests() {
+    const current = this.demoBuyerMatch();
+    return this.state.matches.filter((match) => match.buyerName === current?.buyerName).map((match) => {
+      const item = this.state.inventory.find((entry) => entry.id === match.itemId)!;
+      return { itemName: item.name, unit: item.unit, category: item.category,
+        maximumPricePerUnit: match.maxPricePerUnit, deliveryArea: match.market,
+        fulfilmentPreference: "pickup" as const,
+        neededBy: new Date(Date.now() + 86400000).toISOString(), ...match.request,
+        id: match.id, requestedQuantity: match.requestedQuantity,
+        status: match.requestedQuantity > 0 ? "open" : "fulfilled" };
+    });
+  }
+
+  searchDemoStock(input: PurchaseRequest) {
+    const query = validatePurchaseRequest(input);
+    const items = this.listInventory().filter((item) => item.name.toLowerCase() === query.itemName.toLowerCase()
+      && item.unit === query.unit && item.availableQuantity > 0
+      && (item.expiresInHours === null || item.expiresInHours > 0));
+    this.commit({ ...this.state, sandboxSearch: { query, items } });
+    return items.map((item) => ({ ...item, suggestedQuantity: Math.min(query.requestedQuantity, item.availableQuantity),
+      priceStatus: query.maximumPricePerUnit !== null && query.maximumPricePerUnit < item.pricePerUnit ? "negotiation_needed" : "within_budget" }));
+  }
+
+  prepareDemoRequest(input: PurchaseRequest) {
+    if (this.state.sandboxBuyerDraft) throw new Error("Review or discard the existing request draft first.");
+    const request = validatePurchaseRequest(input);
+    const draft = { ...request, id: newId("demo-request"), buyerId: this.demoBuyerMatch()?.id ?? "demo-buyer", createdBy: "agent" as const };
+    this.commit({ ...this.state, sandboxBuyerDraft: draft });
+    return draft;
+  }
+
+  publishDemoRequest(input: PurchaseRequest) {
+    if (this.state.sandboxRole !== "buyer" || !this.state.sandboxBuyerDraft) throw new Error("Prepare a demo buyer draft first.");
+    const request = validatePurchaseRequest(input);
+    const item = this.state.inventory.find((entry) => entry.name.toLowerCase() === request.itemName.toLowerCase() && entry.unit === request.unit);
+    if (!item) throw new Error("This rehearsal supports the four sample products and their exact units. Choose one from the demo seller inventory.");
+    const buyerName = this.state.matches.find((entry) => entry.id === this.state.sandboxBuyerDraft?.buyerId)?.buyerName ?? "Sample buyer";
+    const match: BuyerMatch = { id: this.state.sandboxBuyerDraft.id, buyerName, itemId: item.id,
+      requestedQuantity: request.requestedQuantity, maxPricePerUnit: request.maximumPricePerUnit ?? 1000000000,
+      market: request.deliveryArea, pickupWindow: `By ${new Date(request.neededBy).toLocaleString("en-NG")}`,
+      distanceKm: 0, matchScore: 0, request };
+    this.commit({ ...this.state, sandboxBuyerDraft: null, selectedItemId: item.id, matches: [match, ...this.state.matches],
+      activities: [this.activity("Demo buyer published a request", "Human-approved fictional demand. No D1 record or real message was created.", "human"), ...this.state.activities].slice(0, 8) });
+    return match;
+  }
+
+  discardDemoRequest() { this.commit({ ...this.state, sandboxBuyerDraft: null }); }
+
   selectItem(itemId: string, source: "human" | "agent" = "human"): void {
     const item = this.state.inventory.find((entry) => entry.id === itemId);
     if (!item) throw new Error(`Inventory item "${itemId}" was not found.`);
@@ -133,7 +187,8 @@ class MarketStore {
     const matches = this.state.matches
       .filter(
         (match) =>
-          match.itemId === itemId && match.distanceKm <= maxDistanceKm,
+          match.itemId === itemId && match.requestedQuantity > 0 && match.distanceKm <= maxDistanceKm
+          && (!match.request || Date.parse(match.request.neededBy) > Date.now()),
       )
       .toSorted((left, right) => {
         const leftValue = left.matchScore - left.distanceKm * 2;

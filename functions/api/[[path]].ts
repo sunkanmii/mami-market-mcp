@@ -103,6 +103,12 @@ function newId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
+function futureDate(value: string | null, label: string): string | null {
+  if (value === null) return null;
+  if (!/(Z|[+-]\d{2}:\d{2})$/.test(value) || !Number.isFinite(Date.parse(value)) || Date.parse(value) <= Date.now()) throw new Error(`${label} must be a future date with a timezone.`);
+  return new Date(value).toISOString();
+}
+
 async function hashText(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -249,6 +255,8 @@ async function getMatches(db: D1Database, request: Request): Promise<Response> {
       WHERE i.id = ?
         AND i.status IN ('available', 'partially_matched')
         AND d.status IN ('open', 'partially_matched')
+        AND (i.available_until IS NULL OR julianday(i.available_until) > julianday('now'))
+        AND julianday(d.needed_by) > julianday('now')
         AND i.remaining_quantity - COALESCE((
               SELECT SUM(o.quantity) FROM offers o
               WHERE o.inventory_id = i.id AND o.status = 'accepted'
@@ -336,7 +344,7 @@ async function createInventory(
     max: askingPrice,
     optional: true,
   });
-  const availableUntil = stringField(body, "availableUntil", { max: 40, optional: true });
+  const availableUntil = futureDate(stringField(body, "availableUntil", { max: 40, optional: true }), "Availability");
   const pickupArea = stringField(body, "pickupArea", { max: 80 })!;
   const pickupNotes = stringField(body, "pickupNotes", { max: 180, optional: true });
 
@@ -381,7 +389,7 @@ async function createDemand(
     max: 1_000_000_000,
     optional: true,
   });
-  const neededBy = stringField(body, "neededBy", { max: 40 })!;
+  const neededBy = futureDate(stringField(body, "neededBy", { max: 40 })!, "Needed by")!;
   const deliveryArea = stringField(body, "deliveryArea", { max: 80 })!;
   const fulfilmentPreference = enumField(body, "fulfilmentPreference", [
     "pickup", "delivery", "either",
@@ -448,6 +456,8 @@ async function createOffer(
     WHERE i.id = ?
       AND i.status IN ('available', 'partially_matched')
       AND d.status IN ('open', 'partially_matched')
+      AND (i.available_until IS NULL OR julianday(i.available_until) > julianday('now'))
+      AND julianday(d.needed_by) > julianday('now')
       AND lower(trim(i.item_name)) = lower(trim(d.item_name))
       AND lower(trim(i.unit)) = lower(trim(d.unit))
   `).bind(demandId, inventoryId).first<OfferCandidate>();
@@ -574,24 +584,41 @@ async function updateOfferStatus(
           ? "completed_at = ?,"
           : "";
   const timestampValues = nextStatus === "sent" ? [now, now] : timestampColumn ? [now] : [];
+  // The status compare-and-set and capacity check happen in the SAME SQL write.
+  // batch() is transactional; each later write requires this attempt's unique event.
+  const eventId = newId("event");
+  const requiresCapacity = nextStatus === "sent" || nextStatus === "accepted";
+  const capacityGuard = requiresCapacity ? `AND EXISTS (
+    SELECT 1 FROM inventory i JOIN demands d ON d.id = offers.demand_id
+    WHERE i.id = offers.inventory_id
+      AND i.status IN ('available', 'partially_matched')
+      AND d.status IN ('open', 'partially_matched')
+      AND (i.available_until IS NULL OR julianday(i.available_until) > julianday('now'))
+      AND julianday(d.needed_by) > julianday('now')
+      AND i.remaining_quantity - COALESCE((SELECT SUM(r.quantity) FROM offers r WHERE r.inventory_id = i.id AND r.status = 'accepted'), 0) >= offers.quantity
+      AND d.remaining_quantity - COALESCE((SELECT SUM(r.quantity) FROM offers r WHERE r.demand_id = d.id AND r.status = 'accepted'), 0) >= offers.quantity
+  )` : nextStatus === "completed" ? `AND EXISTS (
+    SELECT 1 FROM inventory i JOIN demands d ON d.id = offers.demand_id
+    WHERE i.id = offers.inventory_id AND i.remaining_quantity >= offers.quantity AND d.remaining_quantity >= offers.quantity
+  )` : "";
   const statements = [
-    db.prepare(`UPDATE offers SET ${timestampColumn} status = ?, updated_at = ? WHERE id = ?`)
-      .bind(...timestampValues, nextStatus, now, offerId),
+    db.prepare(`UPDATE offers SET ${timestampColumn} status = ?, updated_at = ? WHERE id = ? AND status = ? ${capacityGuard}`)
+      .bind(...timestampValues, nextStatus, now, offerId, offer.status),
     db.prepare(`
       INSERT INTO activity_events (id, participant_id, offer_id, event_type, detail)
-      VALUES (?, ?, ?, ?, ?)
+      SELECT ?, ?, ?, ?, ? WHERE changes() = 1
     `).bind(
-      newId("event"), actorId, offerId, `offer_${nextStatus}`,
+      eventId, actorId, offerId, `offer_${nextStatus}`,
       `${offer.quantity} ${offer.unit} of ${offer.itemName}: offer ${nextStatus}.`,
     ),
   ];
 
   if (nextStatus === "accepted") {
     statements.push(
-      db.prepare("UPDATE inventory SET status = 'partially_matched', updated_at = ? WHERE id = ?")
-        .bind(now, offer.inventoryId),
-      db.prepare("UPDATE demands SET status = 'partially_matched', updated_at = ? WHERE id = ?")
-        .bind(now, offer.demandId),
+      db.prepare("UPDATE inventory SET status = 'partially_matched', updated_at = ? WHERE id = ? AND EXISTS (SELECT 1 FROM activity_events WHERE id = ?)")
+        .bind(now, offer.inventoryId, eventId),
+      db.prepare("UPDATE demands SET status = 'partially_matched', updated_at = ? WHERE id = ? AND EXISTS (SELECT 1 FROM activity_events WHERE id = ?)")
+        .bind(now, offer.demandId, eventId),
     );
   }
   if (nextStatus === "completed") {
@@ -601,18 +628,19 @@ async function updateOfferStatus(
         SET remaining_quantity = remaining_quantity - ?,
             status = CASE WHEN remaining_quantity - ? <= 0 THEN 'sold' ELSE 'available' END,
             updated_at = ?
-        WHERE id = ? AND remaining_quantity >= ?
-      `).bind(offer.quantity, offer.quantity, now, offer.inventoryId, offer.quantity),
+        WHERE id = ? AND remaining_quantity >= ? AND EXISTS (SELECT 1 FROM activity_events WHERE id = ?)
+      `).bind(offer.quantity, offer.quantity, now, offer.inventoryId, offer.quantity, eventId),
       db.prepare(`
         UPDATE demands
         SET remaining_quantity = remaining_quantity - ?,
             status = CASE WHEN remaining_quantity - ? <= 0 THEN 'fulfilled' ELSE 'open' END,
             updated_at = ?
-        WHERE id = ? AND remaining_quantity >= ?
-      `).bind(offer.quantity, offer.quantity, now, offer.demandId, offer.quantity),
+        WHERE id = ? AND remaining_quantity >= ? AND EXISTS (SELECT 1 FROM activity_events WHERE id = ?)
+      `).bind(offer.quantity, offer.quantity, now, offer.demandId, offer.quantity, eventId),
     );
   }
-  await db.batch(statements);
+  const results = await db.batch(statements);
+  if (results[0].meta.changes !== 1) return apiError(409, "The offer changed, expired, or its quantity is no longer available. Refresh before trying again.");
   return json({ offer: { id: offerId, status: nextStatus, updatedAt: now } });
 }
 
@@ -731,7 +759,7 @@ export const onRequest: PagesFunction<Bindings, "path"> = async (context) => {
     }
 
     if (request.method === "POST" && path === "participants") {
-      return createParticipant(env.trader_network_db, await readBody(request));
+      return await createParticipant(env.trader_network_db, await readBody(request));
     }
     const statusMatch = path.match(/^offers\/([^/]+)\/status$/);
     const participantWrite =
@@ -741,16 +769,16 @@ export const onRequest: PagesFunction<Bindings, "path"> = async (context) => {
       const actor = await authenticatedParticipant(request, env.trader_network_db);
       if (!actor) return apiError(401, "This participant session is missing or expired. Join the pilot again on this device.");
       if (request.method === "POST" && path === "inventory") {
-        return createInventory(env.trader_network_db, await readBody(request), actor);
+        return await createInventory(env.trader_network_db, await readBody(request), actor);
       }
       if (request.method === "POST" && path === "demands") {
-        return createDemand(env.trader_network_db, await readBody(request), actor);
+        return await createDemand(env.trader_network_db, await readBody(request), actor);
       }
       if (request.method === "POST" && path === "offers") {
-        return createOffer(env.trader_network_db, await readBody(request), actor);
+        return await createOffer(env.trader_network_db, await readBody(request), actor);
       }
       if (request.method === "PATCH" && statusMatch) {
-        return updateOfferStatus(
+        return await updateOfferStatus(
           env.trader_network_db,
           decodeURIComponent(statusMatch[1]),
           await readBody(request),

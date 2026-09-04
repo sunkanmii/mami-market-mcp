@@ -132,6 +132,33 @@ export interface PilotMatch {
 const CODE_KEY = "trader-network-pilot-code-v1";
 const PROFILE_KEY = "trader-network-pilot-profile-v2";
 const SESSION_KEY = "trader-network-participant-session-v2";
+const SAVED_SESSIONS_KEY = "trader-network-saved-sessions-v1";
+
+type SavedSession = { profile: PilotParticipant; sessionToken: string };
+
+function readSavedSessions(): SavedSession[] {
+  try {
+    const value: unknown = JSON.parse(window.localStorage.getItem(SAVED_SESSIONS_KEY) ?? "[]");
+    return Array.isArray(value) ? value.filter((entry): entry is SavedSession =>
+      entry && typeof entry.sessionToken === "string" && entry.sessionToken.length > 0 &&
+      typeof entry.profile?.id === "string" && typeof entry.profile?.displayName === "string" &&
+      ["buyer", "trader", "facilitator"].includes(entry.profile.role),
+    ) : [];
+  } catch { return []; }
+}
+
+function rememberSession(profile: PilotParticipant, sessionToken: string): void {
+  const existing = readSavedSessions();
+  if (existing.some((entry) => entry.profile.id === profile.id && entry.sessionToken === sessionToken && JSON.stringify(entry.profile) === JSON.stringify(profile))) return;
+  const sessions = existing.filter((entry) => entry.profile.id !== profile.id);
+  window.localStorage.setItem(SAVED_SESSIONS_KEY, JSON.stringify([...sessions, { profile, sessionToken }]));
+}
+
+function rememberActiveSession(): void {
+  const profile = pilotApi.loadProfile();
+  const token = window.localStorage.getItem(SESSION_KEY);
+  if (profile && token) rememberSession(profile, token);
+}
 
 export class PilotApiError extends Error {
   constructor(
@@ -192,8 +219,31 @@ export const pilotApi = {
     }
   },
   saveProfile(profile: PilotParticipant, sessionToken?: string): void {
+    const previousId = pilotApi.loadProfile()?.id;
+    rememberActiveSession();
+    // Never carry one participant's credentials into another profile.
+    if (!sessionToken && previousId !== profile.id) window.localStorage.removeItem(SESSION_KEY);
     window.localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-    if (sessionToken) window.localStorage.setItem(SESSION_KEY, sessionToken);
+    if (sessionToken) {
+      window.localStorage.setItem(SESSION_KEY, sessionToken);
+      rememberSession(profile, sessionToken);
+    }
+  },
+  savedProfiles(): PilotParticipant[] {
+    // Upgrade the existing single-profile session without touching D1.
+    rememberActiveSession();
+    return readSavedSessions().map((entry) => entry.profile);
+  },
+  switchProfile(participantId: string): PilotParticipant {
+    const session = readSavedSessions().find((entry) => entry.profile.id === participantId);
+    if (!session) throw new Error("This profile is not saved in this browser. Return to the browser where you registered.");
+    pilotApi.saveProfile(session.profile, session.sessionToken);
+    return session.profile;
+  },
+  pauseProfile(): void {
+    rememberActiveSession();
+    window.localStorage.removeItem(PROFILE_KEY);
+    window.localStorage.removeItem(SESSION_KEY);
   },
   clearProfile(): void {
     window.localStorage.removeItem(PROFILE_KEY);

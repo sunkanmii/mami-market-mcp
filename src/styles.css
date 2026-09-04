@@ -1818,9 +1818,11 @@ img {
   border: 1px solid var(--leaf);
 }
 
-.secondary-button:hover {
+.secondary-button:hover:not(:disabled),
+.secondary-button:focus-visible {
   color: var(--leaf);
-  background: transparent;
+  background: var(--lime);
+  border-color: var(--lime);
 }
 
 .empty-match {

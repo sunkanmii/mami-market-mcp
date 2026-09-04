@@ -58,7 +58,17 @@ export function DemoOfferStatus({ state, view }: { state: MarketState; view: "se
       <p>No stock is reserved until the buyer accepts. Contact details are not revealed yet.</p>
       {view === "seller" ? <button className="secondary-button" type="button" onClick={() => marketStore.setSandboxRole("buyer")}>View offer as demo buyer</button> : <div className="demo-offer-actions"><button className="secondary-button" type="button" onClick={() => marketStore.respondToDemoOffer("accepted")}>Accept demo offer</button><button className="secondary-button" type="button" onClick={() => marketStore.respondToDemoOffer("declined")}>Decline demo offer</button></div>}
     </> : null}
-    {accepted ? <div className="demo-contact-handoff"><h4>{view === "buyer" ? "Seller contact handoff" : "Buyer contact handoff"}</h4><p>In the live pilot, the matched person’s phone/WhatsApp and public meetup details appear here after acceptance.</p><dl><div><dt>Contact</dt><dd>{view === "buyer" ? "Sample market trader" : match?.buyerName}</dd></div><div><dt>Phone / WhatsApp</dt><dd>Demo placeholder · no real number</dd></div><div><dt>Meetup</dt><dd>Example market entrance · fictional location</dd></div></dl><p>Inspect the goods and confirm payment and pickup offline. This sandbox does not call or message anyone.</p></div> : null}
+    {accepted ? <div className="demo-contact-handoff">
+      <h4>{view === "buyer" ? "Seller contact handoff" : "Buyer contact handoff"}</h4>
+      <p>Fictional contact details · unlocked by accepting this demo offer.</p>
+      <dl>
+        <div><dt>Contact</dt><dd>{view === "buyer" ? "Tola · Sample market trader" : match?.buyerName ?? "Amaka Fresh Foods"}</dd></div>
+        <div><dt>Phone / WhatsApp</dt><dd>{view === "buyer" ? "080X 000 0101" : "080X 000 0102"}</dd></div>
+        <div><dt>Meetup</dt><dd>Stall A12, Sample Market · beside the main gate</dd></div>
+        <div><dt>Pickup plan</dt><dd>{match?.pickupWindow ?? "Today, 4–6 PM"} · inspect the goods together before payment</dd></div>
+      </dl>
+      <p>The X makes these demo numbers non-dialable. This fictional handoff does not call or message anyone.</p>
+    </div> : null}
     {offer.status === "accepted" ? <><p>{offer.quantity} {item.unit} are reserved in this demo, but pickup is not complete.</p><button className="secondary-button" type="button" onClick={() => marketStore.completeDemoOffer()}>Simulate completed pickup</button></> : null}
     {offer.status === "completed" ? <p>Illustrative stock and demand updated. No real sale occurred; live pilot totals are unchanged.</p> : null}
     {offer.status === "declined" ? <p>No stock was reserved. The seller can try a different offer in a new rehearsal.</p> : null}

@@ -37,6 +37,10 @@ describe("Trader Network human-in-the-loop flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /accept demo offer/i }));
     expect(marketStore.getSnapshot().inventory[0].reserved).toBe(6);
     expect(screen.getByText("Seller contact handoff")).toBeInTheDocument();
+    expect(screen.getByText("Tola · Sample market trader")).toBeInTheDocument();
+    expect(screen.getByText("080X 000 0101")).toBeInTheDocument();
+    expect(screen.getByText("Stall A12, Sample Market · beside the main gate")).toBeInTheDocument();
+    expect(document.querySelector('a[href^="tel:"], a[href*="wa.me"]')).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /simulate completed pickup/i }));
     expect(marketStore.getSnapshot().inventory[0].quantity).toBe(12);
     expect(marketStore.getSnapshot().inventory[0].reserved).toBe(0);

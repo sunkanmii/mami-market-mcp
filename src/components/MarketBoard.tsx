@@ -16,17 +16,35 @@ const reveal = (id: string) => requestAnimationFrame(() => {
   element?.focus({ preventScroll: true });
 });
 
+const normalizeFilter = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+function listingOptions(values: (string | null)[]) {
+  const options = new Map<string, string>();
+  for (const value of values) {
+    const label = value?.trim().replace(/\s+/g, " ");
+    if (label && !options.has(normalizeFilter(label))) options.set(normalizeFilter(label), label);
+  }
+  return [...options].sort((a, b) => a[1].localeCompare(b[1]));
+}
+
 export function MarketBoard({ profile, snapshot, busy, runMutation }: Props) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("available");
+  const [location, setLocation] = useState("");
+  const [category, setCategory] = useState("");
   const [error, setError] = useState("");
   const buying = profile.role === "buyer";
   const offers = snapshot?.offers ?? [];
   const entries = buying ? snapshot?.inventory ?? [] : snapshot?.demands ?? [];
+  const locations = listingOptions(entries.map((item) => "traderId" in item ? item.pickupArea : item.deliveryArea));
+  const categories = listingOptions(entries.map((item) => item.category));
+  const hasFilters = Boolean(query || location || category || filter !== "available");
+  const clearFilters = () => { setQuery(""); setLocation(""); setCategory(""); setFilter("available"); };
   const visible = entries.filter((item) => {
     const area = "traderId" in item ? item.pickupArea : item.deliveryArea;
     return (filter === "all" || availability(item, offers).state === filter) &&
-      `${item.itemName} ${area}`.toLowerCase().includes(query.trim().toLowerCase());
+      (!location || normalizeFilter(area) === location) &&
+      (!category || normalizeFilter(item.category ?? "") === category) &&
+      normalizeFilter(`${item.itemName} ${area} ${item.category ?? ""}`).includes(normalizeFilter(query));
   });
   const requestStock = (item: PilotInventory) => {
     setError("");
@@ -54,7 +72,21 @@ export function MarketBoard({ profile, snapshot, busy, runMutation }: Props) {
     <header><span className="eyebrow">Live market · shared across participants</span><h3 id="market-board-title">{buying ? "Browse stock for sale" : "Browse buyer requests"}</h3>
       <p>{buying ? "Choose goods to prepare an editable request. Publishing it invites matching traders to offer; it is not an order or reservation with this seller." : "See what buyers need. Respond using your matching stock, then review and send the offer."}</p>
     </header>
-    <div className="market-filters"><label>Search product or area<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="e.g. Watermelon or Ketu" /></label><label>Show<select value={filter} onChange={(event) => setFilter(event.target.value)}><option value="available">Available</option><option value="reserved">Reserved</option><option value="closed">Closed</option><option value="all">All listings</option></select></label></div>
+    <div className="market-filters">
+      <label>Search product or area<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="e.g. Watermelon or Ketu" /></label>
+      <label>{buying ? "Pickup location" : "Buyer location"}<select value={location} onChange={(event) => setLocation(event.target.value)}>
+        <option value="">All locations</option>
+        {locations.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        {location && !locations.some(([value]) => value === location) ? <option value={location}>{location} (no longer listed)</option> : null}
+      </select></label>
+      <label>Category<select value={category} onChange={(event) => setCategory(event.target.value)}>
+        <option value="">All categories</option>
+        {categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        {category && !categories.some(([value]) => value === category) ? <option value={category}>{category} (no longer listed)</option> : null}
+      </select></label>
+      <label>Show<select value={filter} onChange={(event) => setFilter(event.target.value)}><option value="available">Available</option><option value="reserved">Reserved</option><option value="closed">Closed</option><option value="all">All listings</option></select></label>
+      <button type="button" className="compact-button market-clear-filters" disabled={!hasFilters} onClick={clearFilters}>Reset filters</button>
+    </div>
     {error ? <p role="alert" className="inline-error">{error} <button type="button" className="text-button" onClick={() => reveal("buyer-agent-workspace")}>Review current draft</button></p> : null}
     <p className="market-result-count" role="status">{snapshot ? `${visible.length} ${buying ? "stock listing" : "buyer request"}${visible.length === 1 ? "" : "s"}` : "Waiting for live market data…"}</p>
     <div className="market-list">{visible.map((entry) => {
@@ -72,6 +104,6 @@ export function MarketBoard({ profile, snapshot, busy, runMutation }: Props) {
         }) : <p className="market-help">No compatible stock of yours yet. <a href="#seller-stock-form">Post stock</a> with the same product and unit ({entry.unit}) and a compatible price.</p> : <p>No new offers while this request is {info.state}.</p>}
       </article>;
     })}</div>
-    {snapshot && visible.length === 0 ? <p className="empty-record">No {filter === "all" ? "matching" : filter} {buying ? "stock" : "requests"}{query ? " match your search" : " yet"}. Try another filter or check back as participants post.</p> : null}
+    {snapshot && visible.length === 0 ? <p className="empty-record">{hasFilters ? "No listings match these filters. Reset filters to see available listings, or try another location or category." : `No available ${buying ? "stock" : "requests"} yet. Check back as participants post.`}</p> : null}
   </section>;
 }

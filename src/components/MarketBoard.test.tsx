@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MarketBoard } from "./MarketBoard";
 import { buyerAgent, validatePurchaseRequest, matchStock } from "../lib/buyer-agent";
@@ -12,6 +12,38 @@ const network = (): PilotSnapshot => ({ source: "cloudflare-d1", inventory: [sto
 const mutate = async (action: () => Promise<unknown>) => { await action(); return true; };
 beforeEach(() => buyerAgent.reset());
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+it("filters actual stock locations and categories together with search, and resets without writes", () => {
+  const data = network();
+  data.inventory = [
+    { ...stock, category: "Produce" },
+    { ...stock, id: "two", itemName: "Tomatoes", pickupArea: "  ketu  ", category: "produce" },
+    { ...stock, id: "three", itemName: "Catfish", pickupArea: "Magodo Phase 2", category: "Fish" },
+    { ...stock, id: "four", itemName: "Beans", pickupArea: "Magodo Phase 2", category: null },
+  ];
+  const runMutation = vi.fn();
+  render(<MarketBoard profile={buyer} snapshot={data} busy={false} runMutation={runMutation} />);
+  expect(within(screen.getByLabelText("Pickup location")).getAllByRole("option")).toHaveLength(3);
+  fireEvent.change(screen.getByLabelText("Pickup location"), { target: { value: "ketu" } });
+  fireEvent.change(screen.getByLabelText("Category"), { target: { value: "produce" } });
+  expect(screen.getByRole("status")).toHaveTextContent("2 stock listings");
+  fireEvent.change(screen.getByLabelText("Search product or area"), { target: { value: " tomatoes " } });
+  expect(screen.getByRole("status")).toHaveTextContent("1 stock listing");
+  fireEvent.change(screen.getByLabelText("Category"), { target: { value: "fish" } });
+  expect(screen.getByText(/No listings match these filters/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Reset filters" }));
+  expect(screen.getByRole("status")).toHaveTextContent("4 stock listings");
+  expect(runMutation).not.toHaveBeenCalled();
+});
+it("filters seller requests by buyer location and keeps a removed selection visible after refresh", () => {
+  const data = network();
+  data.demands = [{ ...demand, category: "Produce" }, { ...demand, id: "second", deliveryArea: "Ikeja", category: "Fruit" }];
+  const { rerender } = render(<MarketBoard profile={seller} snapshot={data} busy={false} runMutation={mutate} />);
+  fireEvent.change(screen.getByLabelText("Buyer location"), { target: { value: "ikeja" } });
+  expect(screen.getByRole("status")).toHaveTextContent("1 buyer request");
+  rerender(<MarketBoard profile={seller} snapshot={network()} busy={false} runMutation={mutate} />);
+  expect(screen.getByRole("option", { name: "ikeja (no longer listed)" })).toBeInTheDocument();
+  expect(screen.getByRole("status")).toHaveTextContent("0 buyer requests");
+});
 it("lets buyers browse and prepare a piece request without publishing or reserving", () => {
   const write = vi.spyOn(pilotApi, "createDemand");
   render(<MarketBoard profile={buyer} snapshot={network()} busy={false} runMutation={mutate} />);

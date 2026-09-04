@@ -44,6 +44,20 @@ async function request(path, actor = 'seller', body, method = 'POST') {
   return onRequest({ request: new Request(`https://test.invalid/api/${path}`, { method: body ? method : 'GET', headers: { 'x-pilot-code': 'test-only', authorization: `Bearer ${actor}`, 'content-type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) }), env: { trader_network_db: db, PILOT_ACCESS_CODE: 'test-only' } });
 }
 const status = (id, actor, value) => request(`offers/${id}/status`, actor, { actorId: actor, status: value }, 'PATCH');
+test('registration preserves local numbers and user-supplied country codes without assuming Nigeria', async () => {
+  for (const [phoneNumber, expected] of [['08055560063','08055560063'], ['020 7946 0958','02079460958'], ['+44 20 7946 0958','+442079460958'], ['+1 (202) 555-0123','+12025550123'], ['+234 805 556 0063','+2348055560063'], ['2348055560063','2348055560063']]) {
+    const response = await request('participants','seller',{role:'buyer',displayName:'Phone test',area:'Test area',phoneNumber,preferredContactMethod:'either',meetupLocation:'Test entrance',consent:true,contactSharingConsent:true});
+    assert.equal(response.status,201);
+    const { participant } = await response.json();
+    assert.equal(sql.prepare('SELECT phone_number FROM participants WHERE id=?').get(participant.id).phone_number,expected);
+  }
+});
+test('registration rejects malformed phone numbers instead of silently stripping letters', async () => {
+  for (const phoneNumber of ['call08055560063','++442079460958','+0000000000','123456','1234567890123456']) {
+    const response = await request('participants','seller',{role:'buyer',displayName:'Phone test',area:'Test area',phoneNumber,preferredContactMethod:'either',meetupLocation:'Test entrance',consent:true,contactSharingConsent:true});
+    assert.equal(response.status,422);
+  }
+});
 test('matching and drafting exclude expired demand and stock', async () => {
   sql.exec("UPDATE demands SET needed_by = '2020-01-01T00:00:00Z'");
   assert.equal((await (await request('matches?inventoryId=stock')).json()).matches.length, 0);

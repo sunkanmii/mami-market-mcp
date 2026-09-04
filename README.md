@@ -1,6 +1,8 @@
 # Trader Network
 
-Trader Network is a WebMCP-enabled surplus-stock exchange for informal market traders. It helps a trader inspect urgent inventory, find nearby demand, and prepare an offer for human approval before perishable goods lose value.
+Trader Network is a WebMCP-enabled marketplace that helps informal market traders connect surplus and time-sensitive perishable stock with buyers before it loses freshness or value. Whether goods are nearing the end of their freshness window or a seller simply wants to sell them soon, people and their browser agents can find compatible demand and prepare offers for human approval. Payment and pickup happen offline.
+
+**Open source:** [MIT License](LICENSE). The repository includes a standard root-level `LICENSE` file for GitHub license detection. Third-party asset licenses are listed below.
 
 The application now has two deliberately separated modes:
 
@@ -46,7 +48,7 @@ For the anonymous illustrative sandbox, the expected tool sequence is:
 3. `find_surplus_matches({ itemId: "tomatoes-roma", maxDistanceKm: 5 })`
 4. `draft_surplus_offer({ itemId: "tomatoes-roma", quantity: 6, pricePerUnit: 27500, matchId: "buyer-amaka" })`
 5. The trader reviews the visible draft and selects **Approve and send** or discards it.
-6. Switch to **Demo buyer** to accept or decline the same offer. Acceptance reserves illustrative stock and shows a placeholder contact handoff. **Simulate completed pickup** updates only sandbox stock and demand, never live pilot totals.
+6. Switch to **Demo buyer** to accept or decline the same offer. Acceptance reserves illustrative stock and shows fictional sample contact and pickup details, including non-dialable numbers. **Simulate completed pickup** updates only sandbox stock and demand, never live pilot totals.
 7. In the live pilot, the matched buyer accepts or declines on a separate device and either participant can record completed pickup.
 
 ### Judge access: test both roles without credentials
@@ -61,6 +63,8 @@ The agent can also call `draft_purchase_request` with the sample product, exact 
 
 Ordinary browsers can use the forms and role buttons; invoking agent tools requires a WebMCP-capable host. There is no embedded chatbot or autonomous payment agent.
 
+In Chrome, enabling `chrome://flags/#enable-webmcp-testing` makes the browser API available, but the agent connection must also support tool discovery and invocation. Chrome's [WebMCP guide](https://developer.chrome.com/docs/ai/webmcp) describes the Model Context Tool Inspector for manual calls and agent testing. A browser automation connection that can read or click the page does not necessarily expose WebMCP invocation.
+
 ### What this pilot demonstrates
 
 The platform's intended outcome is a buyer–seller connection and contact handoff, with payment and pickup arranged offline. Accepted connections and reported pickups are different events. The organiser tested the workflow as the buyer using a real seller's recorded watermelon inventory. That recorded completed entry is explicitly labelled a **recorded-stock rehearsal**; no physical sale, revenue, prevented waste, or independent buyer adoption is claimed. The original D1 history is preserved. A future pickup may be reported by a participant, but the app does not independently verify it.
@@ -69,7 +73,7 @@ The platform's intended outcome is a buyer–seller connection and contact hando
 
 - Buyers see **Browse stock for sale**. Select a listing to prepare an editable request, then explicitly publish it. This is an open request to compatible traders, not a direct purchase or reservation from the selected seller.
 - Sellers see **Browse buyer requests**. A compatible stock line enables **Prepare offer**; review the draft under **Your offers & exchanges**, then approve and send it.
-- Search by product or area and filter listings by Available, Reserved, Closed, or All. Accepted offers reserve quantities; sent offers do not. Expired and withdrawn listings are closed without being counted as completed sales.
+- Search by product or area and filter by listed location, category, and Available, Reserved, Closed, or All. Location/category options come from the actual records; no country is inferred. Accepted offers reserve quantities; sent offers do not. Expired and withdrawn listings are closed without being counted as completed sales.
 - Both participants retain their offer history. An accepted offer awaits offline pickup; only a confirmed completed pickup appears as **Closed · pickup completed**.
 - Units include crates, baskets, bags, packs, kilograms, and **piece**. Both sides must use the same unit; the app does not assume packaging conversions.
 
@@ -78,6 +82,8 @@ For live trading, use IDs returned by the tools, not the illustrative IDs above.
 Matching uses exact product names and units after trimming and lowercasing; it does not convert packs into crates. Buyer stock search subtracts accepted reservations and excludes expired stock. Same-area labels are prioritised but are not measured distances. A price below asking is only a negotiation possibility, and delivery and pickup arrangements still need human confirmation. Seller offer drafts require trader approval, then buyer acceptance; only confirm completed pickup after the actual exchange.
 
 Payment and delivery remain outside the platform. Participants consent to storing a phone number and public meetup landmark; those details are excluded from network and matching responses and revealed only to the two participants after an offer is accepted. The pilot does not store financial records, identity documents, or verification photos.
+
+Local phone numbers are accepted without adding or inferring a country code. Participants are advised to enter `+` and their own country's calling code for international contact and direct WhatsApp links. Formatting separators are removed, but leading local zeros and explicitly supplied country codes are preserved. Numbers without an explicit international prefix remain visible in the handoff, with guidance instead of a guessed WhatsApp link. Existing saved numbers are not rewritten by this change.
 
 ## Run locally
 
@@ -127,9 +133,7 @@ The production deployment is hosted on Cloudflare Pages. Use the live URL in a W
 
 ## Hackathon scope
 
-This project was created during the OpenAI WebMCP Challenge submission period. Therefore, it is intentionally limited to one measurable workflow: connecting time-sensitive surplus items/about to spoil items to compatible nearby demand. It is a facilitated, access-code-protected pilot rather than an open marketplace. Forecasting, payments, hosted identity-photo verification, and automated external messaging remain outside scope; accepted participants coordinate by phone or WhatsApp and verify the person and goods at pickup.
-
-Note: In case
+This project was created during the OpenAI WebMCP Challenge submission period. Its scope is one focused workflow: connecting surplus and time-sensitive perishable goods with compatible buyers while the goods are still suitable for sale. This includes stock nearing the end of its freshness window and stock a trader wants to sell sooner. It is a facilitated, access-code-protected pilot rather than an open marketplace. Forecasting, payments, hosted identity-photo verification, and automated external messaging remain outside scope; accepted participants coordinate by phone or WhatsApp and verify the person and goods at pickup. Freshness windows are participant-provided, not a food-safety assessment or a guarantee that goods are safe to consume.
 
 ## Assets and licenses
 

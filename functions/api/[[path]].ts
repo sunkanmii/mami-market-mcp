@@ -92,11 +92,10 @@ function enumField<T extends string>(body: JsonRecord, key: string, values: read
 }
 
 function normalizePhoneNumber(value: string): string {
-  const digits = value.replace(/\D/g, "");
-  if (digits.length === 11 && digits.startsWith("0")) return `+234${digits.slice(1)}`;
-  if (digits.length === 13 && digits.startsWith("234")) return `+${digits}`;
-  if (value.trim().startsWith("+") && digits.length >= 8 && digits.length <= 15) return `+${digits}`;
-  throw new Error("Use a Nigerian mobile number or include the international country code.");
+  const input = value.trim();
+  const compact = input.replace(/[\s().-]/g, "");
+  if (/^\+?[0-9\s().-]+$/.test(input) && /^(?:\+[1-9][0-9]{6,14}|[0-9]{7,15})$/.test(compact)) return compact;
+  throw new Error("Enter a phone number with 7–15 digits. You may include + and your country's calling code; no country code is added automatically.");
 }
 
 function newId(prefix: string): string {

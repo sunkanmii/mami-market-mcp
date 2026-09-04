@@ -556,6 +556,9 @@ img {
   font-weight: 500;
 }
 
+.phone-number-field .form-note { margin-top: 8px; }
+.phone-number-field + label { align-self: start; }
+
 .pilot-form input,
 .pilot-form select,
 .pilot-form textarea {

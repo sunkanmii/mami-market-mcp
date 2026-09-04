@@ -310,6 +310,7 @@ export function PilotNetwork() {
                 Area
                 <input name="area" maxLength={80} required placeholder="e.g. Ketu" />
               </label>
+              <div className="phone-number-field">
               <label>
                 Phone or WhatsApp number
                 <input
@@ -320,9 +321,12 @@ export function PilotNetwork() {
                   minLength={7}
                   maxLength={25}
                   required
-                  placeholder="e.g. +234 803 000 0000"
+                  placeholder="Your phone number"
+                  aria-describedby="phone-number-help"
                 />
               </label>
+              <p id="phone-number-help" className="form-note">Local numbers are accepted. For WhatsApp and international calls, include + and your country's calling code. We never add a country code for you.</p>
+              </div>
               <label>
                 Preferred contact
                 <select name="preferredContactMethod" defaultValue="either" required>
@@ -709,6 +713,7 @@ function OfferContactPanel({ offer }: { offer: PilotOffer }) {
   if (!details) return <div className="contact-loading" role="status">Loading private handoff details…</div>;
 
   const phoneDigits = details.contact.phoneNumber.replace(/\D/g, "");
+  const hasCountryCode = /^\+[1-9][0-9]{6,14}$/.test(details.contact.phoneNumber.replace(/[\s().-]/g, ""));
   const canCall = details.contact.preferredContactMethod !== "whatsapp";
   const canWhatsApp = details.contact.preferredContactMethod !== "call";
 
@@ -741,12 +746,13 @@ function OfferContactPanel({ offer }: { offer: PilotOffer }) {
             <PhoneIcon weight="fill" aria-hidden="true" />Call
           </a>
         ) : null}
-        {canWhatsApp ? (
+        {canWhatsApp && hasCountryCode ? (
           <a href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noreferrer">
             <WhatsappLogoIcon weight="fill" aria-hidden="true" />WhatsApp
           </a>
         ) : null}
       </div>
+      {!hasCountryCode ? <p>This number was provided without an explicit country code. Confirm the country code with the participant before contacting them internationally{canWhatsApp ? " or using WhatsApp. No direct WhatsApp link is available for this number." : "."}</p> : null}
       <p>
         At pickup, verify the person, stall and goods in person. Trader Network
         does not upload identity photos or documents in this pilot.
